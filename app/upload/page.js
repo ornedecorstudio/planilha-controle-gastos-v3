@@ -177,7 +177,9 @@ export default function UploadPage() {
         }
 
         if (!pdfResult.transacoes || pdfResult.transacoes.length === 0) {
-          throw new Error('Nenhuma transação encontrada no PDF')
+          const debugInfo = pdfResult.metodo ? ` [método: ${pdfResult.metodo}, banco: ${pdfResult.banco_detectado}]` : ''
+          console.error('[upload] pdfResult sem transações:', JSON.stringify(pdfResult).substring(0, 500))
+          throw new Error(`Nenhuma transação encontrada no PDF${debugInfo}`)
         }
 
         parsed = pdfResult.transacoes.map(t => ({

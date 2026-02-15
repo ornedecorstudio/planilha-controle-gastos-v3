@@ -6,9 +6,9 @@ import { filtrarTransacoesIA, corrigirEstornosIA, calcularAuditoria } from '@/li
 // Timeout de 60s para chamadas IA com PDF visual (PicPay, Santander)
 export const maxDuration = 60;
 
-const ANTHROPIC_MODEL = 'claude-opus-4-6';
+const ANTHROPIC_MODEL = 'claude-sonnet-4-20250514';
 const ANTHROPIC_API_URL = 'https://api.anthropic.com/v1/messages';
-const ANTHROPIC_MAX_TOKENS = 128000;
+const ANTHROPIC_MAX_TOKENS = 16384;
 const MIN_TRANSACOES_PARSER = 3;
 
 export async function POST(request) {
@@ -168,9 +168,11 @@ export async function POST(request) {
       }),
     });
 
+    console.log(`[parse-pdf] Anthropic API status: ${response.status}`);
+
     if (!response.ok) {
       const errorData = await response.json().catch(() => ({}));
-      console.error('Erro da API Anthropic:', response.status, errorData);
+      console.error('[parse-pdf] Erro da API Anthropic:', response.status, JSON.stringify(errorData).substring(0, 500));
 
       // Fallback: retorna resultado parcial do parser se disponível
       if (pipelineResult?.transacoes?.length > 0) {
@@ -201,6 +203,8 @@ export async function POST(request) {
 
     const data = await response.json();
     const responseText = data.content?.[0]?.text || '';
+    console.log(`[parse-pdf] Anthropic response: model=${data.model}, stop_reason=${data.stop_reason}, usage=${JSON.stringify(data.usage)}`);
+    console.log(`[parse-pdf] responseText length: ${responseText.length}, primeiros 300 chars: ${responseText.substring(0, 300)}`);
 
     // Parse do JSON da IA
     let result;
@@ -310,7 +314,14 @@ export async function POST(request) {
         .reduce((sum, t) => sum + (t.valor || 0), 0),
       banco_detectado: result.banco_detectado || bancoDetectado,
       metodo,
-      auditoria
+      auditoria,
+      debug: {
+        model: data.model,
+        stop_reason: data.stop_reason,
+        usage: data.usage,
+        ia_transacoes_brutas: result.transacoes?.length || 0,
+        ia_response_length: responseText.length
+      }
     });
 
   } catch (error) {
