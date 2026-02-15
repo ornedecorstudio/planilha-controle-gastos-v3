@@ -320,7 +320,9 @@ export async function POST(request) {
         stop_reason: data.stop_reason,
         usage: data.usage,
         ia_transacoes_brutas: result.transacoes?.length || 0,
-        ia_response_length: responseText.length
+        ia_response_length: responseText.length,
+        ia_response_preview: responseText.substring(0, 1000),
+        content_blocks: data.content?.map(c => ({ type: c.type, length: c.text?.length || 0 }))
       }
     });
 
