@@ -8,7 +8,7 @@ export const maxDuration = 60;
 
 const ANTHROPIC_MODEL = 'claude-opus-4-6';
 const ANTHROPIC_API_URL = 'https://api.anthropic.com/v1/messages';
-const ANTHROPIC_MAX_TOKENS = 32768;
+const ANTHROPIC_MAX_TOKENS = 128000;
 const MIN_TRANSACOES_PARSER = 3;
 
 export async function POST(request) {
