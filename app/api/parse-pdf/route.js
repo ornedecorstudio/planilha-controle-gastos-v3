@@ -273,13 +273,16 @@ export async function POST(request) {
       ...t,
       tipo_lancamento: t.tipo_lancamento || 'compra'
     }));
+    const countNormalizadas = transacoes.length;
 
     // Filtro universal (remove subtotais, pagamentos, limites)
     transacoes = filtrarTransacoesIA(transacoes);
-    console.log(`[parse-pdf] Após filtrarTransacoesIA: ${transacoes.length} transações`);
+    const countAposFiltro = transacoes.length;
+    console.log(`[parse-pdf] Após filtrarTransacoesIA: ${transacoes.length} transações (removidas: ${countNormalizadas - countAposFiltro})`);
 
     // Correções específicas do pipeline (cada banco pode ter suas regras)
     transacoes = pipeline.postAICorrections(transacoes, metadadosParser);
+    const countAposCorrections = transacoes.length;
     console.log(`[parse-pdf] Após postAICorrections: ${transacoes.length} transações`);
 
     // Correção genérica de estornos mal-classificados
@@ -290,6 +293,7 @@ export async function POST(request) {
       ?? null;
     console.log(`[parse-pdf] total_fatura_pdf: ${totalFaturaPDF} (metadados: ${metadadosParser?.total_fatura_pdf}, IA: ${result.total_a_pagar})`);
     transacoes = corrigirEstornosIA(transacoes, totalFaturaPDF);
+    const countAposEstornos = transacoes.length;
     console.log(`[parse-pdf] Após corrigirEstornosIA: ${transacoes.length} transações`);
 
     // Calcular auditoria (com resumo da fatura para Mercado Pago — fórmula completa do ciclo)
@@ -320,9 +324,14 @@ export async function POST(request) {
         stop_reason: data.stop_reason,
         usage: data.usage,
         ia_transacoes_brutas: result.transacoes?.length || 0,
+        apos_filtrarTransacoesIA: countAposFiltro,
+        apos_postAICorrections: countAposCorrections,
+        apos_corrigirEstornosIA: countAposEstornos,
+        transacoes_finais: transacoes.length,
+        total_fatura_pdf_usado: totalFaturaPDF,
         ia_response_length: responseText.length,
-        ia_response_preview: responseText.substring(0, 1000),
-        content_blocks: data.content?.map(c => ({ type: c.type, length: c.text?.length || 0 }))
+        ia_response_preview: responseText.substring(0, 500),
+        primeiras_3_transacoes_ia: result.transacoes?.slice(0, 3)
       }
     });
 
