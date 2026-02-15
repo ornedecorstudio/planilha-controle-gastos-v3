@@ -259,6 +259,8 @@ export async function POST(request) {
 
     // ===== PASSO 3: Pós-processamento IA =====
 
+    console.log(`[parse-pdf] IA retornou ${result.transacoes?.length || 0} transações brutas`);
+
     // Normalizar tipo_lancamento
     let transacoes = result.transacoes.map(t => ({
       ...t,
@@ -267,9 +269,11 @@ export async function POST(request) {
 
     // Filtro universal (remove subtotais, pagamentos, limites)
     transacoes = filtrarTransacoesIA(transacoes);
+    console.log(`[parse-pdf] Após filtrarTransacoesIA: ${transacoes.length} transações`);
 
     // Correções específicas do pipeline (cada banco pode ter suas regras)
     transacoes = pipeline.postAICorrections(transacoes, metadadosParser);
+    console.log(`[parse-pdf] Após postAICorrections: ${transacoes.length} transações`);
 
     // Correção genérica de estornos mal-classificados
     // Prioridade para total_fatura_pdf: metadados do parser > resposta da IA > null
@@ -279,6 +283,7 @@ export async function POST(request) {
       ?? null;
     console.log(`[parse-pdf] total_fatura_pdf: ${totalFaturaPDF} (metadados: ${metadadosParser?.total_fatura_pdf}, IA: ${result.total_a_pagar})`);
     transacoes = corrigirEstornosIA(transacoes, totalFaturaPDF);
+    console.log(`[parse-pdf] Após corrigirEstornosIA: ${transacoes.length} transações`);
 
     // Calcular auditoria (com resumo da fatura para Mercado Pago — fórmula completa do ciclo)
     const auditoria = calcularAuditoria(transacoes, totalFaturaPDF, metadadosParser?.resumo_fatura);
@@ -288,7 +293,7 @@ export async function POST(request) {
 
     const metodo = pipelineResult?.needsAI ? 'IA_PDF_HIBRIDO' : 'IA_PDF';
 
-    console.log(`[parse-pdf] IA retornou ${transacoes.length} transações (método: ${metodo})`);
+    console.log(`[parse-pdf] Total final: ${transacoes.length} transações (método: ${metodo})`);
     if (auditoria.reconciliado !== null) {
       console.log(`[parse-pdf] Reconciliação: ${auditoria.reconciliado ? 'OK' : 'DIVERGENTE'} (diferença: ${auditoria.diferenca_centavos} centavos)`);
     }

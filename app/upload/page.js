@@ -146,7 +146,7 @@ export default function UploadPage() {
           parcela: t.parcela || null,
           categoria: 'Outros PJ',
           tipo: 'PJ'
-        })).filter(t => t.data && t.valor > 0)
+        })).filter(t => t.data && t.valor !== 0)
 
         metodo = 'OFX_PARSER'
       } else {
@@ -178,7 +178,7 @@ export default function UploadPage() {
           tipo_lancamento: t.tipo_lancamento || 'compra',
           categoria: 'Outros PJ',
           tipo: 'PJ'
-        })).filter(t => t.data && t.valor > 0)
+        })).filter(t => t.data && t.valor !== 0)
 
         if (pdfResult.auditoria) {
           setAuditoria(pdfResult.auditoria)
