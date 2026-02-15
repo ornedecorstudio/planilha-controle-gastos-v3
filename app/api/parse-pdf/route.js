@@ -3,6 +3,9 @@ import { NextResponse } from 'next/server';
 import { detectarBanco, getPipeline } from '@/lib/pdf-parsers/index.js';
 import { filtrarTransacoesIA, corrigirEstornosIA, calcularAuditoria } from '@/lib/pdf-parsers/utils.js';
 
+// Timeout de 60s para chamadas IA com PDF visual (PicPay, Santander)
+export const maxDuration = 60;
+
 const ANTHROPIC_MODEL = 'claude-opus-4-6';
 const ANTHROPIC_API_URL = 'https://api.anthropic.com/v1/messages';
 const ANTHROPIC_MAX_TOKENS = 128000;

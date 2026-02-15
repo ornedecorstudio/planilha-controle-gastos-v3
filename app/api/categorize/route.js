@@ -1,6 +1,9 @@
 import { NextResponse } from 'next/server';
 import { categorizarML } from '@/lib/ml/categorizer';
 
+// Timeout de 30s para chamadas IA de categorização (text-only)
+export const maxDuration = 30;
+
 // ============================================================
 // CATEGORIZACAO DETERMINISTICA AMPLIADA
 // Regras fixas do negocio: AliExpress = SEMPRE PJ

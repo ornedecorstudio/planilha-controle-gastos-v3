@@ -2,6 +2,9 @@ import { NextResponse } from 'next/server';
 import { parseOFX, isValidOFX, calcularTotais } from '@/lib/ofx-parser';
 import { categorizeAll, identificarReembolsos, calcularResumoPorCategoria } from '@/lib/categorize-extrato';
 
+// Timeout de 60s para fallback IA com PDF visual
+export const maxDuration = 60;
+
 // Modelo para fallback com PDF
 const ANTHROPIC_MODEL = 'claude-sonnet-4-20250514';
 const ANTHROPIC_API_URL = 'https://api.anthropic.com/v1/messages';

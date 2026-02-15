@@ -1,5 +1,16 @@
 {
   "buildCommand": "npm run build",
   "outputDirectory": ".next",
-  "framework": "nextjs"
+  "framework": "nextjs",
+  "functions": {
+    "app/api/parse-pdf/route.js": {
+      "maxDuration": 60
+    },
+    "app/api/parse-extrato/route.js": {
+      "maxDuration": 60
+    },
+    "app/api/categorize/route.js": {
+      "maxDuration": 30
+    }
+  }
 }

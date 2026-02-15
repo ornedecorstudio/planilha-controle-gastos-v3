@@ -159,6 +159,17 @@ export default function UploadPage() {
           method: 'POST',
           body: formData
         })
+
+        // Tratar timeout/erro HTTP antes de tentar json()
+        // Vercel retorna HTML no 504 (timeout), o que faz json() falhar
+        if (!pdfResponse.ok) {
+          if (pdfResponse.status === 504) {
+            throw new Error('O processamento excedeu o tempo limite. Tente novamente.')
+          }
+          const errorData = await pdfResponse.json().catch(() => ({}))
+          throw new Error(errorData.error || `Erro do servidor (${pdfResponse.status})`)
+        }
+
         const pdfResult = await pdfResponse.json()
 
         if (pdfResult.error) {
