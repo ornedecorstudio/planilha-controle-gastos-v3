@@ -56,6 +56,7 @@ export async function POST(request) {
             subtotais: pipelineResult.auditoria.subtotais_pdf || [],
           };
         }
+        console.log(`[parse-pdf] metadadosParser.total_fatura_pdf: ${metadadosParser?.total_fatura_pdf}`);
 
         // Se pipeline NÃO precisa de IA e tem transações suficientes, retorna direto
         if (!pipelineResult?.needsAI &&
@@ -272,9 +273,10 @@ export async function POST(request) {
 
     // Correção genérica de estornos mal-classificados
     // Prioridade para total_fatura_pdf: metadados do parser > resposta da IA > null
+    // Usa ?? (nullish coalescing) em vez de || para não tratar 0 como falsy
     const totalFaturaPDF = metadadosParser?.total_fatura_pdf
-      || (result.total_a_pagar ? parseFloat(result.total_a_pagar) : null)
-      || null;
+      ?? (result.total_a_pagar ? parseFloat(result.total_a_pagar) : null)
+      ?? null;
     console.log(`[parse-pdf] total_fatura_pdf: ${totalFaturaPDF} (metadados: ${metadadosParser?.total_fatura_pdf}, IA: ${result.total_a_pagar})`);
     transacoes = corrigirEstornosIA(transacoes, totalFaturaPDF);
 
