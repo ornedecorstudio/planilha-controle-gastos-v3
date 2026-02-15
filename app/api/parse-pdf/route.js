@@ -207,27 +207,46 @@ export async function POST(request) {
         .trim();
       result = JSON.parse(cleanJson);
     } catch (parseError) {
-      console.error('Erro ao fazer parse do JSON:', parseError);
-
-      if (pipelineResult?.transacoes?.length > 0) {
-        return NextResponse.json({
-          success: true,
-          transacoes: pipelineResult.transacoes,
-          total_encontrado: pipelineResult.transacoes.length,
-          valor_total: pipelineResult.transacoes
-            .filter(t => t.tipo_lancamento === 'compra')
-            .reduce((sum, t) => sum + (t.valor || 0), 0),
-          banco_detectado: bancoDetectado,
-          metodo: 'PARSER_DETERMINISTICO_FALLBACK',
-          aviso: 'IA retornou resposta inválida, usando parser determinístico',
-          auditoria: pipelineResult.auditoria
-        });
+      // Fallback: tentar extrair JSON via regex (IA pode retornar texto extra antes/depois)
+      console.warn('[parse-pdf] JSON.parse direto falhou, tentando regex...', parseError.message);
+      const jsonMatch = responseText.match(/\{[\s\S]*\}/);
+      if (jsonMatch) {
+        try {
+          result = JSON.parse(jsonMatch[0]);
+          console.log('[parse-pdf] JSON extraído via regex com sucesso');
+        } catch (regexParseError) {
+          console.error('[parse-pdf] Regex parse também falhou:', regexParseError.message);
+        }
       }
 
-      return NextResponse.json(
-        { error: 'Erro ao processar resposta da IA', details: 'A IA não retornou um JSON válido' },
-        { status: 500 }
-      );
+      if (!result) {
+        console.error('[parse-pdf] Não foi possível extrair JSON da resposta da IA');
+        console.error('[parse-pdf] Primeiros 500 chars da resposta:', responseText.substring(0, 500));
+
+        if (pipelineResult?.transacoes?.length > 0) {
+          return NextResponse.json({
+            success: true,
+            transacoes: pipelineResult.transacoes,
+            total_encontrado: pipelineResult.transacoes.length,
+            valor_total: pipelineResult.transacoes
+              .filter(t => t.tipo_lancamento === 'compra')
+              .reduce((sum, t) => sum + (t.valor || 0), 0),
+            banco_detectado: bancoDetectado,
+            metodo: 'PARSER_DETERMINISTICO_FALLBACK',
+            aviso: 'IA retornou resposta inválida, usando parser determinístico',
+            auditoria: pipelineResult.auditoria
+          });
+        }
+
+        return NextResponse.json(
+          {
+            error: 'Erro ao processar resposta da IA',
+            details: 'A IA não retornou um JSON válido. Tente novamente.',
+            resposta_ia_preview: responseText.substring(0, 300)
+          },
+          { status: 500 }
+        );
+      }
     }
 
     if (!result.transacoes || !Array.isArray(result.transacoes)) {

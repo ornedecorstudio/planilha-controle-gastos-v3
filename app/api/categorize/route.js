@@ -169,10 +169,13 @@ function categorizarDeterministico(descricao) {
   if (desc.includes('AVAL EMERG') || desc.includes('AVALIACAO EMERG') || desc.includes('CREDITO EMERG')) {
     return { categoria: 'Tarifas Cartão', incluir: false, confianca: 'alta' };
   }
-  if (desc.includes('TARIFA') && (desc.includes('CARTAO') || desc.includes('MENSAL'))) {
+  if (desc.includes('SEG CONTA') || desc.includes('SEGURO CONTA')) {
     return { categoria: 'Tarifas Cartão', incluir: false, confianca: 'alta' };
   }
-  if (desc.includes('TARIFA') || desc.includes('ENCARGO') || desc.includes('MULTA') || desc.includes('JUROS MORA')) {
+  if (desc.includes('TARIFA')) {
+    return { categoria: 'Tarifas Cartão', incluir: false, confianca: 'alta' };
+  }
+  if (desc.includes('ENCARGO') || desc.includes('MULTA') || desc.includes('JUROS MORA')) {
     return { categoria: 'Pessoal', incluir: false, confianca: 'alta' };
   }
 
@@ -543,10 +546,12 @@ CATEGORIAS ESPECIAIS (incluir: false):
 
 CATEGORIAS PESSOAIS (incluir: false):
 - Pessoal: Compras pessoais, restaurantes, entretenimento, streaming, jogos
-- Tarifas Cartao: Anuidades, seguros, taxas bancarias
+- Tarifas Cartao: Anuidades, seguros, taxas bancarias, tarifas do cartao
 - Entretenimento: Netflix, Spotify, Disney+, jogos, lazer
 - Transporte Pessoal: Uber, 99, taxi para uso pessoal
 - Compras Pessoais: Roupas, eletronicos pessoais, presentes
+
+REGRA CRITICA SOBRE TARIFAS: Descricoes contendo "ANUIDADE", "SEG CONTA", "Fatura Segura", "AVAL EMERG", "Tarifa de uso", "SEGURO FATURA", "CREDITO EMERG", "TARIFA" devem ser SEMPRE categorizadas como "Tarifas Cartao" (incluir: false). NUNCA categorize essas como "Compra de Cambio" ou qualquer outra categoria.
 
 REGRA DE OURO: Na duvida entre empresarial e pessoal, SEMPRE opte por PESSOAL (incluir: false) para evitar problemas fiscais.
 
