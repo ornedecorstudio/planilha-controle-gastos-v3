@@ -1,0 +1,6 @@
+scikit-learn>=1.4
+skl2onnx>=1.16
+onnxruntime>=1.17
+pandas>=2.1
+requests>=2.31
+numpy>=1.26

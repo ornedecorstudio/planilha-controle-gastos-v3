@@ -1,0 +1,60 @@
+{
+  "timestamp": "2026-02-10T09:27:19.583664",
+  "total_samples": 70,
+  "manual_corrections": 70,
+  "models": {
+    "tipo": {
+      "accuracy": 1.0,
+      "macro_f1": 1.0,
+      "classes": [
+        "PF",
+        "PJ"
+      ],
+      "n_train": 56,
+      "n_test": 14
+    },
+    "pj": {
+      "accuracy": 0.9285714285714286,
+      "macro_f1": 0.9326599326599326,
+      "classes": [
+        "IOF",
+        "Marketing Digital",
+        "Pagamento Fornecedores"
+      ],
+      "n_train": 53,
+      "n_test": 13
+    },
+    "pf": {
+      "accuracy": 0,
+      "macro_f1": 0,
+      "classes": [],
+      "n_train": 0,
+      "n_test": 0
+    }
+  },
+  "feature_config": {
+    "tfidf_max_features": 5000,
+    "ngram_range": [
+      2,
+      4
+    ],
+    "n_features_total": 431,
+    "bancos": [
+      "NUBANK",
+      "MERCADO PAGO",
+      "C6",
+      "ITAU",
+      "SANTANDER",
+      "PICPAY",
+      "XP",
+      "RENNER",
+      "BRADESCO",
+      "INTER",
+      "CAIXA"
+    ]
+  },
+  "exported_files": [
+    "categorizer_tipo.onnx",
+    "categorizer_pj.onnx"
+  ]
+}

@@ -1,0 +1,295 @@
+import { NextResponse } from 'next/server';
+
+import { detectarBanco, getPipeline } from '@/lib/pdf-parsers/index.js';
+import { filtrarTransacoesIA, corrigirEstornosIA, calcularAuditoria } from '@/lib/pdf-parsers/utils.js';
+
+const ANTHROPIC_MODEL = 'claude-opus-4-6';
+const ANTHROPIC_API_URL = 'https://api.anthropic.com/v1/messages';
+const ANTHROPIC_MAX_TOKENS = 128000;
+const MIN_TRANSACOES_PARSER = 3;
+
+export async function POST(request) {
+  try {
+    const formData = await request.formData();
+
+    const file = formData.get('pdf');
+    const cartaoNome = formData.get('cartao_nome') || '';
+    const tipoCartao = formData.get('tipo_cartao') || '';
+
+    if (!file) {
+      return NextResponse.json(
+        { error: 'Nenhum arquivo enviado' },
+        { status: 400 }
+      );
+    }
+
+    const bytes = await file.arrayBuffer();
+    const buffer = Buffer.from(bytes);
+
+    // ===== PASSO 1: Extração de texto + pipeline determinístico =====
+    let textoExtraido = '';
+    let bancoDetectado = 'desconhecido';
+    let pipelineResult = null;
+    let pipeline = null;
+    let metadadosParser = null;
+
+    try {
+      const pdfParse = (await import('pdf-parse')).default;
+      const pdfData = await pdfParse(buffer);
+      textoExtraido = pdfData.text || '';
+
+      bancoDetectado = detectarBanco(textoExtraido + ' ' + cartaoNome);
+      pipeline = getPipeline(bancoDetectado);
+
+      console.log(`[parse-pdf] Texto extraído: ${textoExtraido.length} caracteres`);
+      console.log(`[parse-pdf] Banco detectado: ${bancoDetectado} (pipeline: ${pipeline.BANK_ID})`);
+
+      if (textoExtraido.length > 100) {
+        pipelineResult = pipeline.extractPipeline(textoExtraido);
+
+        // Extrair metadados para uso na IA
+        if (pipelineResult?.metadados_verificacao) {
+          metadadosParser = pipelineResult.metadados_verificacao;
+        } else if (pipelineResult?.auditoria) {
+          metadadosParser = {
+            total_fatura_pdf: pipelineResult.auditoria.total_fatura_pdf,
+            subtotais: pipelineResult.auditoria.subtotais_pdf || [],
+          };
+        }
+
+        // Se pipeline NÃO precisa de IA e tem transações suficientes, retorna direto
+        if (!pipelineResult?.needsAI &&
+            pipelineResult?.transacoes?.length >= MIN_TRANSACOES_PARSER) {
+
+          console.log(`[parse-pdf] Parser determinístico bem-sucedido: ${pipelineResult.transacoes.length} transações`);
+          console.log(`[parse-pdf] Auditoria: reconciliado=${pipelineResult.auditoria?.reconciliado}, total_fatura_pdf=${pipelineResult.auditoria?.total_fatura_pdf}, diff=${pipelineResult.auditoria?.diferenca_centavos}`);
+
+          return NextResponse.json({
+            success: true,
+            transacoes: pipelineResult.transacoes,
+            total_encontrado: pipelineResult.transacoes.length,
+            valor_total: pipelineResult.transacoes
+              .filter(t => t.tipo_lancamento === 'compra')
+              .reduce((sum, t) => sum + (t.valor || 0), 0),
+            banco_detectado: bancoDetectado,
+            metodo: 'PARSER_DETERMINISTICO',
+            auditoria: pipelineResult.auditoria
+          });
+        }
+
+        if (pipelineResult?.needsAI) {
+          console.log(`[parse-pdf] Pipeline ${bancoDetectado} requer IA visual`);
+        } else {
+          console.log(`[parse-pdf] Pipeline retornou poucas transações (${pipelineResult?.transacoes?.length || 0}), usando IA`);
+        }
+      }
+    } catch (parseError) {
+      console.error('[parse-pdf] Erro no pdf-parse:', parseError.message);
+    }
+
+    // ===== PASSO 2: IA visual (fallback ou forçada pelo pipeline) =====
+    console.log(`[parse-pdf] Usando IA para extração...`);
+
+    const apiKey = process.env.ANTHROPIC_API_KEY;
+    if (!apiKey) {
+      // Retorna o que o parser conseguiu, ou erro
+      if (pipelineResult?.transacoes?.length > 0) {
+        return NextResponse.json({
+          success: true,
+          transacoes: pipelineResult.transacoes,
+          total_encontrado: pipelineResult.transacoes.length,
+          valor_total: pipelineResult.transacoes
+            .filter(t => t.tipo_lancamento === 'compra')
+            .reduce((sum, t) => sum + (t.valor || 0), 0),
+          banco_detectado: bancoDetectado,
+          metodo: 'PARSER_DETERMINISTICO_PARCIAL',
+          auditoria: pipelineResult.auditoria
+        });
+      }
+
+      return NextResponse.json(
+        { error: 'ANTHROPIC_API_KEY não configurada e parser determinístico falhou' },
+        { status: 500 }
+      );
+    }
+
+    // Pedir ao pipeline o prompt específico do banco
+    if (!pipeline) {
+      pipeline = getPipeline(bancoDetectado);
+    }
+
+    const prompt = pipeline.buildAIPrompt(cartaoNome, tipoCartao, metadadosParser);
+    if (!prompt) {
+      // Pipeline não suporta IA — deveria ter retornado resultados determinísticos
+      console.error(`[parse-pdf] Pipeline ${bancoDetectado} não fornece prompt de IA`);
+      return NextResponse.json(
+        { error: `Pipeline ${bancoDetectado} não suporta extração por IA` },
+        { status: 500 }
+      );
+    }
+
+    console.log(`[parse-pdf] Usando prompt do pipeline ${pipeline.BANK_ID}`);
+
+    const base64 = buffer.toString('base64');
+
+    const response = await fetch(ANTHROPIC_API_URL, {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+        'x-api-key': apiKey,
+        'anthropic-version': '2023-06-01',
+      },
+      body: JSON.stringify({
+        model: ANTHROPIC_MODEL,
+        max_tokens: ANTHROPIC_MAX_TOKENS,
+        messages: [
+          {
+            role: 'user',
+            content: [
+              {
+                type: 'document',
+                source: {
+                  type: 'base64',
+                  media_type: 'application/pdf',
+                  data: base64,
+                },
+              },
+              {
+                type: 'text',
+                text: prompt,
+              },
+            ],
+          },
+        ],
+      }),
+    });
+
+    if (!response.ok) {
+      const errorData = await response.json().catch(() => ({}));
+      console.error('Erro da API Anthropic:', response.status, errorData);
+
+      // Fallback: retorna resultado parcial do parser se disponível
+      if (pipelineResult?.transacoes?.length > 0) {
+        return NextResponse.json({
+          success: true,
+          transacoes: pipelineResult.transacoes,
+          total_encontrado: pipelineResult.transacoes.length,
+          valor_total: pipelineResult.transacoes
+            .filter(t => t.tipo_lancamento === 'compra')
+            .reduce((sum, t) => sum + (t.valor || 0), 0),
+          banco_detectado: bancoDetectado,
+          metodo: 'PARSER_DETERMINISTICO_FALLBACK',
+          aviso: 'IA indisponível, usando parser determinístico',
+          auditoria: pipelineResult.auditoria
+        });
+      }
+
+      let errorMsg = `API Anthropic retornou ${response.status}`;
+      if (errorData.error?.message) {
+        errorMsg += `: ${errorData.error.message}`;
+      }
+
+      return NextResponse.json(
+        { error: errorMsg, details: errorData },
+        { status: 500 }
+      );
+    }
+
+    const data = await response.json();
+    const responseText = data.content?.[0]?.text || '';
+
+    // Parse do JSON da IA
+    let result;
+    try {
+      const cleanJson = responseText
+        .replace(/```json\n?/g, '')
+        .replace(/```\n?/g, '')
+        .trim();
+      result = JSON.parse(cleanJson);
+    } catch (parseError) {
+      console.error('Erro ao fazer parse do JSON:', parseError);
+
+      if (pipelineResult?.transacoes?.length > 0) {
+        return NextResponse.json({
+          success: true,
+          transacoes: pipelineResult.transacoes,
+          total_encontrado: pipelineResult.transacoes.length,
+          valor_total: pipelineResult.transacoes
+            .filter(t => t.tipo_lancamento === 'compra')
+            .reduce((sum, t) => sum + (t.valor || 0), 0),
+          banco_detectado: bancoDetectado,
+          metodo: 'PARSER_DETERMINISTICO_FALLBACK',
+          aviso: 'IA retornou resposta inválida, usando parser determinístico',
+          auditoria: pipelineResult.auditoria
+        });
+      }
+
+      return NextResponse.json(
+        { error: 'Erro ao processar resposta da IA', details: 'A IA não retornou um JSON válido' },
+        { status: 500 }
+      );
+    }
+
+    if (!result.transacoes || !Array.isArray(result.transacoes)) {
+      return NextResponse.json(
+        { error: 'Estrutura de resposta inválida', details: 'O campo transacoes não foi encontrado ou não é um array' },
+        { status: 500 }
+      );
+    }
+
+    // ===== PASSO 3: Pós-processamento IA =====
+
+    // Normalizar tipo_lancamento
+    let transacoes = result.transacoes.map(t => ({
+      ...t,
+      tipo_lancamento: t.tipo_lancamento || 'compra'
+    }));
+
+    // Filtro universal (remove subtotais, pagamentos, limites)
+    transacoes = filtrarTransacoesIA(transacoes);
+
+    // Correções específicas do pipeline (cada banco pode ter suas regras)
+    transacoes = pipeline.postAICorrections(transacoes, metadadosParser);
+
+    // Correção genérica de estornos mal-classificados
+    // Prioridade para total_fatura_pdf: metadados do parser > resposta da IA > null
+    const totalFaturaPDF = metadadosParser?.total_fatura_pdf
+      || (result.total_a_pagar ? parseFloat(result.total_a_pagar) : null)
+      || null;
+    console.log(`[parse-pdf] total_fatura_pdf: ${totalFaturaPDF} (metadados: ${metadadosParser?.total_fatura_pdf}, IA: ${result.total_a_pagar})`);
+    transacoes = corrigirEstornosIA(transacoes, totalFaturaPDF);
+
+    // Calcular auditoria (com resumo da fatura para Mercado Pago — fórmula completa do ciclo)
+    const auditoria = calcularAuditoria(transacoes, totalFaturaPDF, metadadosParser?.resumo_fatura);
+    if (metadadosParser?.subtotais) {
+      auditoria.subtotais_pdf = metadadosParser.subtotais;
+    }
+
+    const metodo = pipelineResult?.needsAI ? 'IA_PDF_HIBRIDO' : 'IA_PDF';
+
+    console.log(`[parse-pdf] IA retornou ${transacoes.length} transações (método: ${metodo})`);
+    if (auditoria.reconciliado !== null) {
+      console.log(`[parse-pdf] Reconciliação: ${auditoria.reconciliado ? 'OK' : 'DIVERGENTE'} (diferença: ${auditoria.diferenca_centavos} centavos)`);
+    }
+
+    return NextResponse.json({
+      success: true,
+      transacoes,
+      total_encontrado: result.total_encontrado || transacoes.length,
+      valor_total: result.valor_total || transacoes
+        .filter(t => t.tipo_lancamento === 'compra')
+        .reduce((sum, t) => sum + (t.valor || 0), 0),
+      banco_detectado: result.banco_detectado || bancoDetectado,
+      metodo,
+      auditoria
+    });
+
+  } catch (error) {
+    console.error('Erro no parse-pdf:', error);
+
+    return NextResponse.json(
+      { error: 'Erro ao processar PDF', details: error.message },
+      { status: 500 }
+    );
+  }
+}

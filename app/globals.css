@@ -1,0 +1,88 @@
+@import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600&display=swap');
+
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+:root {
+  --background: #f8f9fc;
+  --foreground: #1e2132;
+  --muted: #6e7590;
+  --border: #e2e5ee;
+  --card: #ffffff;
+  --accent: #1e2132;
+}
+
+body {
+  font-family: 'Inter', -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+  background-color: var(--background);
+  color: var(--foreground);
+  -webkit-font-smoothing: antialiased;
+  -moz-osx-font-smoothing: grayscale;
+}
+
+/* Scrollbar minimalista */
+::-webkit-scrollbar {
+  width: 6px;
+  height: 6px;
+}
+
+::-webkit-scrollbar-track {
+  background: transparent;
+}
+
+::-webkit-scrollbar-thumb {
+  background: #cdd1de;
+  border-radius: 3px;
+}
+
+::-webkit-scrollbar-thumb:hover {
+  background: #9ba2b5;
+}
+
+/* Focus states */
+*:focus-visible {
+  outline: 2px solid #1e2132;
+  outline-offset: 2px;
+}
+
+/* Selection */
+::selection {
+  background-color: #e2e5ee;
+  color: #1e2132;
+}
+
+/* Links */
+a {
+  color: inherit;
+  text-decoration: none;
+}
+
+/* Tabelas */
+table {
+  border-collapse: collapse;
+}
+
+/* Inputs */
+input, select, textarea {
+  font-family: inherit;
+}
+
+input::placeholder,
+textarea::placeholder {
+  color: #9ba2b5;
+}
+
+/* Utilitários customizados */
+@layer utilities {
+  .text-balance {
+    text-wrap: balance;
+  }
+}
+
+/* Animações suaves */
+@layer base {
+  * {
+    @apply transition-colors duration-150;
+  }
+}
