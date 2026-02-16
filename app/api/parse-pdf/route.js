@@ -10,7 +10,7 @@ const ANTHROPIC_MODEL = 'claude-opus-4-6';
 const ANTHROPIC_API_URL = 'https://api.anthropic.com/v1/messages';
 const ANTHROPIC_MAX_TOKENS = 128000;
 const MIN_TRANSACOES_PARSER = 3;
-const DEPLOY_VERSION = 'v4-diag-1';
+const DEPLOY_VERSION = 'v4-diag-2';
 
 export async function POST(request) {
   try {
