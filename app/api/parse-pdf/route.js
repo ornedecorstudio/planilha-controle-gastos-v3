@@ -88,7 +88,7 @@ export async function POST(request) {
         }
       }
     } catch (parseError) {
-      console.error('[parse-pdf] Erro no pdf-parse:', parseError.message);
+      console.error('[parse-pdf] Erro no pdf-parse/pipeline:', parseError.message, parseError.stack?.split('\n').slice(0, 3).join(' | '));
     }
 
     // ===== PASSO 2: IA visual (fallback ou forçada pelo pipeline) =====
