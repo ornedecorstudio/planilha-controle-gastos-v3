@@ -10,7 +10,7 @@ const ANTHROPIC_MODEL = 'claude-opus-4-6';
 const ANTHROPIC_API_URL = 'https://api.anthropic.com/v1/messages';
 const ANTHROPIC_MAX_TOKENS = 128000;
 const MIN_TRANSACOES_PARSER = 3;
-const DEPLOY_VERSION = 'v4-diag-3';
+const DEPLOY_VERSION = 'v4-30e59ed';
 
 export async function POST(request) {
   try {
@@ -340,17 +340,7 @@ export async function POST(request) {
         pipeline_error: metadadosParser?._pipeline_error || null,
         pipeline_needsAI: pipelineResult?.needsAI ?? null,
         pipeline_txns: pipelineResult?.transacoes?.length ?? 0,
-        deploy_version: DEPLOY_VERSION,
-        // Diagnóstico direto do texto extraído
-        diag_banco_detectado: bancoDetectado,
-        diag_text_length: textoExtraido?.length ?? 0,
-        diag_total_lines: textoExtraido ? textoExtraido.split('\n').length : 0,
-        diag_text_sample: textoExtraido ? textoExtraido.substring(0, 500) : 'VAZIO',
-        diag_picpay_card_lines: textoExtraido ? textoExtraido.split('\n').filter(l => /picpay card/i.test(l)).map(l => l.substring(0, 80)).slice(0, 10) : [],
-        diag_subtotal_lines: textoExtraido ? textoExtraido.split('\n').filter(l => /subtotal/i.test(l)).map(l => l.substring(0, 80)).slice(0, 10) : [],
-        diag_first_15_lines: textoExtraido ? textoExtraido.split('\n').slice(0, 15).map(l => l.substring(0, 100)) : [],
-        diag_pipeline_metodo: pipelineResult?.metodo ?? null,
-        diag_pipeline_banco: pipelineResult?.banco_detectado ?? null
+        deploy_version: DEPLOY_VERSION
       }
     });
 
