@@ -10,7 +10,7 @@ const ANTHROPIC_MODEL = 'claude-opus-4-6';
 const ANTHROPIC_API_URL = 'https://api.anthropic.com/v1/messages';
 const ANTHROPIC_MAX_TOKENS = 128000;
 const MIN_TRANSACOES_PARSER = 3;
-const DEPLOY_VERSION = 'v4-diag-2';
+const DEPLOY_VERSION = 'v4-diag-3';
 
 export async function POST(request) {
   try {
@@ -48,28 +48,14 @@ export async function POST(request) {
       console.log(`[parse-pdf] Texto extraído: ${textoExtraido.length} caracteres`);
       console.log(`[parse-pdf] Banco detectado: ${bancoDetectado} (pipeline: ${pipeline.BANK_ID})`);
 
-      // DIAG: sempre capturar info do texto para debug quando PicPay
-      if (bancoDetectado === 'picpay') {
-        const lines = textoExtraido.split('\n');
-        if (!metadadosParser) metadadosParser = {};
-        metadadosParser._diag_text_length = textoExtraido.length;
-        metadadosParser._diag_total_lines = lines.length;
-        metadadosParser._diag_picpay_card_lines = lines.filter(l => /picpay card/i.test(l)).map(l => l.substring(0, 80));
-        metadadosParser._diag_subtotal_lines = lines.filter(l => /subtotal/i.test(l)).map(l => l.substring(0, 80));
-        metadadosParser._diag_first_30_lines = lines.slice(0, 30).map(l => l.substring(0, 100));
-        metadadosParser._diag_text_sample = textoExtraido.substring(0, 500);
-        metadadosParser._diag_banco = bancoDetectado;
-      }
-
       if (textoExtraido.length > 100) {
         pipelineResult = pipeline.extractPipeline(textoExtraido);
 
         // Extrair metadados para uso na IA
         if (pipelineResult?.metadados_verificacao) {
-          metadadosParser = { ...metadadosParser, ...pipelineResult.metadados_verificacao };
+          metadadosParser = pipelineResult.metadados_verificacao;
         } else if (pipelineResult?.auditoria) {
           metadadosParser = {
-            ...metadadosParser,
             total_fatura_pdf: pipelineResult.auditoria.total_fatura_pdf,
             subtotais: pipelineResult.auditoria.subtotais_pdf || [],
           };
@@ -352,15 +338,19 @@ export async function POST(request) {
         ia_response_preview: responseText.substring(0, 500),
         primeiras_3_transacoes_ia: result.transacoes?.slice(0, 3),
         pipeline_error: metadadosParser?._pipeline_error || null,
-        diag_text_length: metadadosParser?._diag_text_length || null,
-        diag_total_lines: metadadosParser?._diag_total_lines || null,
-        diag_picpay_card_lines: metadadosParser?._diag_picpay_card_lines || null,
-        diag_subtotal_lines: metadadosParser?._diag_subtotal_lines || null,
-        diag_first_30_lines: metadadosParser?._diag_first_30_lines || null,
-        diag_text_sample: metadadosParser?._diag_text_sample || null,
         pipeline_needsAI: pipelineResult?.needsAI ?? null,
         pipeline_txns: pipelineResult?.transacoes?.length ?? 0,
-        deploy_version: DEPLOY_VERSION
+        deploy_version: DEPLOY_VERSION,
+        // Diagnóstico direto do texto extraído
+        diag_banco_detectado: bancoDetectado,
+        diag_text_length: textoExtraido?.length ?? 0,
+        diag_total_lines: textoExtraido ? textoExtraido.split('\n').length : 0,
+        diag_text_sample: textoExtraido ? textoExtraido.substring(0, 500) : 'VAZIO',
+        diag_picpay_card_lines: textoExtraido ? textoExtraido.split('\n').filter(l => /picpay card/i.test(l)).map(l => l.substring(0, 80)).slice(0, 10) : [],
+        diag_subtotal_lines: textoExtraido ? textoExtraido.split('\n').filter(l => /subtotal/i.test(l)).map(l => l.substring(0, 80)).slice(0, 10) : [],
+        diag_first_15_lines: textoExtraido ? textoExtraido.split('\n').slice(0, 15).map(l => l.substring(0, 100)) : [],
+        diag_pipeline_metodo: pipelineResult?.metodo ?? null,
+        diag_pipeline_banco: pipelineResult?.banco_detectado ?? null
       }
     });
 
