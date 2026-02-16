@@ -10,7 +10,7 @@ const ANTHROPIC_MODEL = 'claude-opus-4-6';
 const ANTHROPIC_API_URL = 'https://api.anthropic.com/v1/messages';
 const ANTHROPIC_MAX_TOKENS = 128000;
 const MIN_TRANSACOES_PARSER = 3;
-const DEPLOY_VERSION = 'v4-2d4dd39';
+const DEPLOY_VERSION = 'v4-diag-1';
 
 export async function POST(request) {
   try {
@@ -85,6 +85,25 @@ export async function POST(request) {
 
         if (pipelineResult?.needsAI) {
           console.log(`[parse-pdf] Pipeline ${bancoDetectado} requer IA visual`);
+          // Diagnóstico: capturar amostra do texto para debug
+          if (bancoDetectado === 'picpay') {
+            const lines = textoExtraido.split('\n');
+            const picpayCardLines = lines.filter((l, i) => /picpay card/i.test(l)).map((l, i) => l.substring(0, 80));
+            const subtotalLines = lines.filter(l => /subtotal/i.test(l)).map(l => l.substring(0, 80));
+            const sampleLines = lines.slice(0, 30).map(l => l.substring(0, 100));
+            console.log(`[parse-pdf] DIAG PicPay: total lines=${lines.length}`);
+            console.log(`[parse-pdf] DIAG PicPay: picpayCard lines=${JSON.stringify(picpayCardLines)}`);
+            console.log(`[parse-pdf] DIAG PicPay: subtotal lines=${JSON.stringify(subtotalLines)}`);
+            console.log(`[parse-pdf] DIAG PicPay: first 30 lines=${JSON.stringify(sampleLines)}`);
+            // Salvar no metadados para retornar na resposta
+            if (!metadadosParser) metadadosParser = pipelineResult?.metadados_verificacao || {};
+            metadadosParser._diag_text_length = textoExtraido.length;
+            metadadosParser._diag_total_lines = lines.length;
+            metadadosParser._diag_picpay_card_lines = picpayCardLines;
+            metadadosParser._diag_subtotal_lines = subtotalLines;
+            metadadosParser._diag_first_30_lines = sampleLines;
+            metadadosParser._diag_text_sample = textoExtraido.substring(0, 500);
+          }
         } else {
           console.log(`[parse-pdf] Pipeline retornou poucas transações (${pipelineResult?.transacoes?.length || 0}), usando IA`);
         }
@@ -338,6 +357,12 @@ export async function POST(request) {
         ia_response_preview: responseText.substring(0, 500),
         primeiras_3_transacoes_ia: result.transacoes?.slice(0, 3),
         pipeline_error: metadadosParser?._pipeline_error || null,
+        diag_text_length: metadadosParser?._diag_text_length || null,
+        diag_total_lines: metadadosParser?._diag_total_lines || null,
+        diag_picpay_card_lines: metadadosParser?._diag_picpay_card_lines || null,
+        diag_subtotal_lines: metadadosParser?._diag_subtotal_lines || null,
+        diag_first_30_lines: metadadosParser?._diag_first_30_lines || null,
+        diag_text_sample: metadadosParser?._diag_text_sample || null,
         pipeline_needsAI: pipelineResult?.needsAI ?? null,
         pipeline_txns: pipelineResult?.transacoes?.length ?? 0,
         deploy_version: DEPLOY_VERSION
