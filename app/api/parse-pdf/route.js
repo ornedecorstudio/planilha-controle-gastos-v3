@@ -10,6 +10,7 @@ const ANTHROPIC_MODEL = 'claude-opus-4-6';
 const ANTHROPIC_API_URL = 'https://api.anthropic.com/v1/messages';
 const ANTHROPIC_MAX_TOKENS = 128000;
 const MIN_TRANSACOES_PARSER = 3;
+const DEPLOY_VERSION = 'v4-2d4dd39';
 
 export async function POST(request) {
   try {
@@ -77,7 +78,8 @@ export async function POST(request) {
               .reduce((sum, t) => sum + (t.valor || 0), 0),
             banco_detectado: bancoDetectado,
             metodo: 'PARSER_DETERMINISTICO',
-            auditoria: pipelineResult.auditoria
+            auditoria: pipelineResult.auditoria,
+            deploy_version: DEPLOY_VERSION
           });
         }
 
@@ -337,7 +339,8 @@ export async function POST(request) {
         primeiras_3_transacoes_ia: result.transacoes?.slice(0, 3),
         pipeline_error: metadadosParser?._pipeline_error || null,
         pipeline_needsAI: pipelineResult?.needsAI ?? null,
-        pipeline_txns: pipelineResult?.transacoes?.length ?? 0
+        pipeline_txns: pipelineResult?.transacoes?.length ?? 0,
+        deploy_version: DEPLOY_VERSION
       }
     });
 
