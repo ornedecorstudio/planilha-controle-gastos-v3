@@ -4,7 +4,7 @@
   "framework": "nextjs",
   "functions": {
     "app/api/parse-pdf/route.js": {
-      "maxDuration": 60
+      "maxDuration": 300
     },
     "app/api/parse-extrato/route.js": {
       "maxDuration": 60

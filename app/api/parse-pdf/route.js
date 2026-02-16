@@ -3,8 +3,8 @@ import { NextResponse } from 'next/server';
 import { detectarBanco, getPipeline } from '@/lib/pdf-parsers/index.js';
 import { filtrarTransacoesIA, corrigirEstornosIA, calcularAuditoria } from '@/lib/pdf-parsers/utils.js';
 
-// Timeout de 60s para chamadas IA com PDF visual (PicPay, Santander)
-export const maxDuration = 60;
+// Timeout de 300s para chamadas IA com PDF visual (PicPay, Santander)
+export const maxDuration = 300;
 
 const ANTHROPIC_MODEL = 'claude-opus-4-6';
 const ANTHROPIC_API_URL = 'https://api.anthropic.com/v1/messages';
@@ -88,7 +88,10 @@ export async function POST(request) {
         }
       }
     } catch (parseError) {
-      console.error('[parse-pdf] Erro no pdf-parse/pipeline:', parseError.message, parseError.stack?.split('\n').slice(0, 3).join(' | '));
+      console.error('[parse-pdf] Erro no pdf-parse/pipeline:', parseError.message, parseError.stack?.split('\n').slice(0, 5).join(' | '));
+      // Preservar erro para debug na resposta
+      if (!metadadosParser) metadadosParser = {};
+      metadadosParser._pipeline_error = `${parseError.message} | ${parseError.stack?.split('\n').slice(1, 4).join(' | ') || ''}`;
     }
 
     // ===== PASSO 2: IA visual (fallback ou forçada pelo pipeline) =====
@@ -331,7 +334,10 @@ export async function POST(request) {
         total_fatura_pdf_usado: totalFaturaPDF,
         ia_response_length: responseText.length,
         ia_response_preview: responseText.substring(0, 500),
-        primeiras_3_transacoes_ia: result.transacoes?.slice(0, 3)
+        primeiras_3_transacoes_ia: result.transacoes?.slice(0, 3),
+        pipeline_error: metadadosParser?._pipeline_error || null,
+        pipeline_needsAI: pipelineResult?.needsAI ?? null,
+        pipeline_txns: pipelineResult?.transacoes?.length ?? 0
       }
     });
 
