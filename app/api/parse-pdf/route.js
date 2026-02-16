@@ -48,14 +48,28 @@ export async function POST(request) {
       console.log(`[parse-pdf] Texto extraído: ${textoExtraido.length} caracteres`);
       console.log(`[parse-pdf] Banco detectado: ${bancoDetectado} (pipeline: ${pipeline.BANK_ID})`);
 
+      // DIAG: sempre capturar info do texto para debug quando PicPay
+      if (bancoDetectado === 'picpay') {
+        const lines = textoExtraido.split('\n');
+        if (!metadadosParser) metadadosParser = {};
+        metadadosParser._diag_text_length = textoExtraido.length;
+        metadadosParser._diag_total_lines = lines.length;
+        metadadosParser._diag_picpay_card_lines = lines.filter(l => /picpay card/i.test(l)).map(l => l.substring(0, 80));
+        metadadosParser._diag_subtotal_lines = lines.filter(l => /subtotal/i.test(l)).map(l => l.substring(0, 80));
+        metadadosParser._diag_first_30_lines = lines.slice(0, 30).map(l => l.substring(0, 100));
+        metadadosParser._diag_text_sample = textoExtraido.substring(0, 500);
+        metadadosParser._diag_banco = bancoDetectado;
+      }
+
       if (textoExtraido.length > 100) {
         pipelineResult = pipeline.extractPipeline(textoExtraido);
 
         // Extrair metadados para uso na IA
         if (pipelineResult?.metadados_verificacao) {
-          metadadosParser = pipelineResult.metadados_verificacao;
+          metadadosParser = { ...metadadosParser, ...pipelineResult.metadados_verificacao };
         } else if (pipelineResult?.auditoria) {
           metadadosParser = {
+            ...metadadosParser,
             total_fatura_pdf: pipelineResult.auditoria.total_fatura_pdf,
             subtotais: pipelineResult.auditoria.subtotais_pdf || [],
           };
@@ -85,25 +99,6 @@ export async function POST(request) {
 
         if (pipelineResult?.needsAI) {
           console.log(`[parse-pdf] Pipeline ${bancoDetectado} requer IA visual`);
-          // Diagnóstico: capturar amostra do texto para debug
-          if (bancoDetectado === 'picpay') {
-            const lines = textoExtraido.split('\n');
-            const picpayCardLines = lines.filter((l, i) => /picpay card/i.test(l)).map((l, i) => l.substring(0, 80));
-            const subtotalLines = lines.filter(l => /subtotal/i.test(l)).map(l => l.substring(0, 80));
-            const sampleLines = lines.slice(0, 30).map(l => l.substring(0, 100));
-            console.log(`[parse-pdf] DIAG PicPay: total lines=${lines.length}`);
-            console.log(`[parse-pdf] DIAG PicPay: picpayCard lines=${JSON.stringify(picpayCardLines)}`);
-            console.log(`[parse-pdf] DIAG PicPay: subtotal lines=${JSON.stringify(subtotalLines)}`);
-            console.log(`[parse-pdf] DIAG PicPay: first 30 lines=${JSON.stringify(sampleLines)}`);
-            // Salvar no metadados para retornar na resposta
-            if (!metadadosParser) metadadosParser = pipelineResult?.metadados_verificacao || {};
-            metadadosParser._diag_text_length = textoExtraido.length;
-            metadadosParser._diag_total_lines = lines.length;
-            metadadosParser._diag_picpay_card_lines = picpayCardLines;
-            metadadosParser._diag_subtotal_lines = subtotalLines;
-            metadadosParser._diag_first_30_lines = sampleLines;
-            metadadosParser._diag_text_sample = textoExtraido.substring(0, 500);
-          }
         } else {
           console.log(`[parse-pdf] Pipeline retornou poucas transações (${pipelineResult?.transacoes?.length || 0}), usando IA`);
         }
