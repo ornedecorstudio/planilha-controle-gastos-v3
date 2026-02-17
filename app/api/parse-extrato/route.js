@@ -1,6 +1,7 @@
 import { NextResponse } from 'next/server';
 import { parseOFX, isValidOFX, calcularTotais } from '@/lib/ofx-parser';
 import { categorizeAll, identificarReembolsos, calcularResumoPorCategoria } from '@/lib/categorize-extrato';
+import { getExtratoParser } from '@/lib/extrato-parsers/index.js';
 
 // Timeout de 60s para fallback IA com PDF visual
 export const maxDuration = 60;
@@ -87,17 +88,9 @@ export async function POST(request) {
       });
     }
 
-    // ===== PROCESSAMENTO PDF (COM IA) =====
+    // ===== PROCESSAMENTO PDF =====
     if (fileExtension === 'pdf') {
-      const apiKey = process.env.ANTHROPIC_API_KEY;
-      if (!apiKey) {
-        return NextResponse.json(
-          { error: 'ANTHROPIC_API_KEY não configurada. Use arquivo OFX para processamento sem IA.' },
-          { status: 500 }
-        );
-      }
-
-      // ===== PASSO 1: Extrair texto do PDF para ajudar a IA =====
+      // ===== PASSO 1: Extrair texto do PDF =====
       let textoExtraido = '';
       let bancoDetectado = banco || '';
 
@@ -133,6 +126,60 @@ export async function POST(request) {
       // Se o banco não foi detectado, tenta pelo nome do arquivo
       if (!bancoDetectado) {
         bancoDetectado = detectarBancoExtrato('', fileName);
+      }
+
+      // ===== PASSO 1b: Tentar parser determinístico (sem IA) =====
+      if (textoExtraido.length > 100) {
+        const parser = getExtratoParser(bancoDetectado);
+        if (parser) {
+          console.log(`[parse-extrato] Usando parser determinístico para ${bancoDetectado}`);
+          const resultado = parser(textoExtraido);
+
+          if (resultado.movimentacoes.length > 0) {
+            const movimentacoesCat = categorizeAll(resultado.movimentacoes);
+            const totais = calcularTotais(movimentacoesCat);
+            const reembolsos = identificarReembolsos(movimentacoesCat);
+            const resumoPorCategoria = calcularResumoPorCategoria(movimentacoesCat);
+
+            console.log(`[parse-extrato] Parser determinístico: ${movimentacoesCat.length} movimentações`);
+
+            return NextResponse.json({
+              success: true,
+              metodo: 'PDF_PARSER_DETERMINISTICO',
+              banco: resultado.banco || bancoDetectado || banco,
+              periodo_inicio: resultado.periodo_inicio || null,
+              periodo_fim: resultado.periodo_fim || null,
+              saldo_final: null,
+              movimentacoes: movimentacoesCat,
+              total_movimentacoes: movimentacoesCat.length,
+              total_entradas: totais.total_entradas,
+              total_saidas: totais.total_saidas,
+              saldo_periodo: totais.saldo_periodo,
+              quantidade_entradas: totais.quantidade_entradas,
+              quantidade_saidas: totais.quantidade_saidas,
+              reembolsos_identificados: reembolsos,
+              total_reembolsos: reembolsos.reduce((sum, r) => sum + r.valor, 0),
+              resumo_categorias: resumoPorCategoria,
+            });
+          }
+          console.log(`[parse-extrato] Parser determinístico retornou 0 movimentações, tentando IA...`);
+        }
+      }
+
+      // ===== PASSO 2: Fallback IA visual (somente PDFs sem senha) =====
+      if (senhaPdf) {
+        // Anthropic rejeita PDFs protegidos por senha — sem fallback possível
+        return NextResponse.json({
+          error: `Não foi possível extrair movimentações do extrato ${bancoDetectado || 'PDF'}. PDFs protegidos por senha não podem ser processados por IA visual.`,
+        }, { status: 400 });
+      }
+
+      const apiKey = process.env.ANTHROPIC_API_KEY;
+      if (!apiKey) {
+        return NextResponse.json(
+          { error: 'ANTHROPIC_API_KEY não configurada. Use arquivo OFX para processamento sem IA.' },
+          { status: 500 }
+        );
       }
 
       const base64 = buffer.toString('base64');
@@ -336,7 +383,7 @@ function detectarBancoExtrato(texto, fileName = '') {
   if (conteudo.includes('C6 BANK') || conteudo.includes('C6 S.A') || conteudo.includes('BANCO C6') || conteudo.includes('C6 CONSIG')) {
     return 'C6 Bank';
   }
-  if (conteudo.includes('ITAÚ') || conteudo.includes('ITAU UNIBANCO') || conteudo.includes('ITAUCARD')) {
+  if (conteudo.includes('ITAÚ') || conteudo.includes('ITAU') || conteudo.includes('ITAUCARD')) {
     return 'Itaú';
   }
   if (conteudo.includes('NUBANK') || conteudo.includes('NU PAGAMENTOS')) {
