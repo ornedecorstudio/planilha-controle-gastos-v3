@@ -2,9 +2,9 @@
 
 import { useState, useEffect } from 'react'
 import Link from 'next/link'
-import { Trash2, Copy } from 'lucide-react'
+import { Trash2 } from 'lucide-react'
 import ConfirmModal from '@/components/ConfirmModal'
-import DuplicatesModal from '@/components/DuplicatesModal'
+import MonthPicker from '@/components/MonthPicker'
 
 export default function ReconciliacaoPage() {
   const [loading, setLoading] = useState(true)
@@ -15,17 +15,19 @@ export default function ReconciliacaoPage() {
   const [error, setError] = useState('')
   const [success, setSuccess] = useState('')
   const [deleteModal, setDeleteModal] = useState({ open: false, movimentacao: null })
-  const [duplicatesModal, setDuplicatesModal] = useState({ open: false, duplicatas: [] })
   const [loadingAction, setLoadingAction] = useState(false)
+  const [mesFiltro, setMesFiltro] = useState(null)
 
   useEffect(() => {
     carregarDados()
-  }, [])
+  }, [mesFiltro])
 
   const carregarDados = async () => {
     try {
       setLoading(true)
-      const response = await fetch('/api/reembolsos?tipo=todos')
+      let reembolsosUrl = '/api/reembolsos?tipo=todos'
+      if (mesFiltro) reembolsosUrl += `&mes=${mesFiltro}`
+      const response = await fetch(reembolsosUrl)
       const data = await response.json()
       if (data.error) throw new Error(data.error)
       setFaturas(data.faturas || [])
@@ -83,46 +85,6 @@ export default function ReconciliacaoPage() {
     }
   }
 
-  const handleCheckDuplicates = async () => {
-    setLoadingAction(true)
-    try {
-      const res = await fetch('/api/reembolsos?duplicates=true', { method: 'DELETE' })
-      const result = await res.json()
-      if (result.error) throw new Error(result.error)
-      if (result.duplicadas && result.duplicadas.length > 0) {
-        setDuplicatesModal({ open: true, duplicatas: result.duplicadas })
-      } else {
-        setSuccess('Nenhuma movimentação duplicada encontrada.')
-        setTimeout(() => setSuccess(''), 3000)
-      }
-    } catch (err) {
-      setError('Erro ao verificar duplicadas: ' + err.message)
-      setTimeout(() => setError(''), 3000)
-    } finally {
-      setLoadingAction(false)
-    }
-  }
-
-  const handleDeleteDuplicates = async (ids) => {
-    if (ids.length === 0) return
-    setLoadingAction(true)
-    try {
-      const res = await fetch(`/api/reembolsos?ids=${ids.join(',')}`, { method: 'DELETE' })
-      const result = await res.json()
-      if (result.error) throw new Error(result.error)
-      setMovimentacoes(prev => prev.filter(m => !ids.includes(m.id)))
-      setDuplicatesModal({ open: false, duplicatas: [] })
-      setSuccess(`${ids.length} movimentações duplicadas removidas`)
-      setTimeout(() => setSuccess(''), 3000)
-      carregarDados()
-    } catch (err) {
-      setError('Erro ao remover duplicadas: ' + err.message)
-      setTimeout(() => setError(''), 3000)
-    } finally {
-      setLoadingAction(false)
-    }
-  }
-
   const formatCurrency = (value) => {
     return (parseFloat(value) || 0).toLocaleString('pt-BR', { minimumFractionDigits: 2, maximumFractionDigits: 2 })
   }
@@ -145,14 +107,22 @@ export default function ReconciliacaoPage() {
 
   return (
     <div className="space-y-5">
-      <div className="flex items-center justify-between">
+      <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3">
         <div>
           <h1 className="text-page-title text-neutral-900">Reconciliação de Reembolsos</h1>
           <p className="text-body text-neutral-500">Vincule faturas PF com reembolsos do extrato PJ</p>
         </div>
-        <Link href="/extratos" className="px-3 py-1.5 bg-neutral-900 text-white rounded-lg hover:bg-neutral-800 text-[13px] font-medium">
-          Novo extrato
-        </Link>
+        <div className="flex items-center gap-2">
+          <MonthPicker
+            onChange={(val) => setMesFiltro(val || null)}
+            placeholder="Todos os meses"
+            allowClear={true}
+            label={null}
+          />
+          <Link href="/extratos" className="px-3 py-1.5 bg-neutral-900 text-white rounded-lg hover:bg-neutral-800 text-[13px] font-medium">
+            Novo extrato
+          </Link>
+        </div>
       </div>
 
       {error && <div className="p-3 bg-red-50 border border-neutral-200 rounded-lg text-[13px] text-red-700">{error}</div>}
@@ -304,16 +274,6 @@ export default function ReconciliacaoPage() {
             </h2>
             <p className="text-label text-neutral-400">Transferências identificadas como reembolso no extrato PJ</p>
           </div>
-          {movimentacoes.length > 0 && (
-            <button
-              onClick={handleCheckDuplicates}
-              disabled={loadingAction}
-              className="px-3 py-1.5 text-[13px] text-neutral-600 bg-white border border-neutral-200 rounded-lg hover:bg-neutral-50 flex items-center gap-1.5 disabled:opacity-50"
-            >
-              <Copy size={14} strokeWidth={1.5} />
-              Verificar duplicadas
-            </button>
-          )}
         </div>
         {movimentacoes.length === 0 ? (
           <div className="p-6 text-center text-[13px] text-neutral-500">
@@ -416,13 +376,6 @@ export default function ReconciliacaoPage() {
         loading={loadingAction}
       />
 
-      <DuplicatesModal
-        isOpen={duplicatesModal.open}
-        onClose={() => setDuplicatesModal({ open: false, duplicatas: [] })}
-        duplicatas={duplicatesModal.duplicatas}
-        onConfirm={handleDeleteDuplicates}
-        loading={loadingAction}
-      />
     </div>
   )
 }

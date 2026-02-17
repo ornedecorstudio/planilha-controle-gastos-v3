@@ -64,11 +64,15 @@ export default function ExtratosPage() {
   const [selectedIds, setSelectedIds] = useState(new Set())
   const [deleteModal, setDeleteModal] = useState({ open: false, extrato: null, multiple: false })
   const [loadingAction, setLoadingAction] = useState(false)
+  const [mesFiltro, setMesFiltro] = useState(null)
 
   useEffect(() => {
     const carregarExtratos = async () => {
+      setLoadingExtratos(true)
       try {
-        const res = await fetch('/api/extratos?limit=50')
+        let url = '/api/extratos?limit=50'
+        if (mesFiltro) url += `&mes_referencia=${mesFiltro}`
+        const res = await fetch(url)
         const data = await res.json()
         setExtratosImportados(data.extratos || [])
       } catch (err) {
@@ -78,7 +82,7 @@ export default function ExtratosPage() {
       }
     }
     carregarExtratos()
-  }, [])
+  }, [mesFiltro])
 
   const toggleSelection = (id) => {
     const newSet = new Set(selectedIds)
@@ -405,15 +409,23 @@ export default function ExtratosPage() {
               <h2 className="text-section-title text-neutral-900">Extratos importados</h2>
               <p className="text-label text-neutral-500">{extratosImportados.length} extratos</p>
             </div>
-            {selectedIds.size > 0 && (
-              <button
-                onClick={handleDeleteMultiple}
-                className="px-3 py-1.5 bg-red-600 text-white rounded-lg hover:bg-red-700 text-[13px] font-medium flex items-center gap-1.5"
-              >
-                <Trash2 size={14} strokeWidth={1.5} />
-                Remover {selectedIds.size}
-              </button>
-            )}
+            <div className="flex items-center gap-2">
+              <MonthPicker
+                onChange={(val) => setMesFiltro(val || null)}
+                placeholder="Todos os meses"
+                allowClear={true}
+                label={null}
+              />
+              {selectedIds.size > 0 && (
+                <button
+                  onClick={handleDeleteMultiple}
+                  className="px-3 py-1.5 bg-red-600 text-white rounded-lg hover:bg-red-700 text-[13px] font-medium flex items-center gap-1.5"
+                >
+                  <Trash2 size={14} strokeWidth={1.5} />
+                  Remover {selectedIds.size}
+                </button>
+              )}
+            </div>
           </div>
           {loadingExtratos ? (
             <div className="flex items-center justify-center h-24">

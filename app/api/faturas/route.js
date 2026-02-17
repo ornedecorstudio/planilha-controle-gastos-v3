@@ -11,6 +11,7 @@ export async function GET(request) {
     const cartao_id = searchParams.get('cartao_id')
     const status = searchParams.get('status')
     const ano = searchParams.get('ano')
+    const mes_referencia = searchParams.get('mes_referencia') // YYYY-MM
     const limit = parseInt(searchParams.get('limit')) || 50
 
     // Se tem ID, busca fatura especifica
@@ -60,7 +61,11 @@ export async function GET(request) {
       query = query.eq('status', status)
     }
 
-    if (ano) {
+    if (mes_referencia) {
+      query = query
+        .gte('mes_referencia', `${mes_referencia}-01`)
+        .lte('mes_referencia', `${mes_referencia}-31`)
+    } else if (ano) {
       query = query
         .gte('mes_referencia', `${ano}-01-01`)
         .lte('mes_referencia', `${ano}-12-31`)
@@ -126,7 +131,7 @@ export async function PATCH(request) {
     const supabase = createServerClient()
     const body = await request.json()
 
-    const { id, status, data_pagamento, data_vencimento, data_fechamento } = body
+    const { id, status, data_pagamento, data_vencimento, data_fechamento, mes_referencia } = body
 
     if (!id) {
       return NextResponse.json({ error: 'ID da fatura e obrigatorio' }, { status: 400 })
@@ -137,6 +142,7 @@ export async function PATCH(request) {
     if (data_pagamento) updateData.data_pagamento = data_pagamento
     if (data_vencimento !== undefined) updateData.data_vencimento = data_vencimento || null
     if (data_fechamento !== undefined) updateData.data_fechamento = data_fechamento || null
+    if (mes_referencia !== undefined) updateData.mes_referencia = mes_referencia
 
     const { data, error } = await supabase
       .from('faturas')

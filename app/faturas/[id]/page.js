@@ -3,10 +3,10 @@
 import { useState, useEffect } from 'react'
 import { useParams, useRouter } from 'next/navigation'
 import Link from 'next/link'
-import { Trash2, Copy, Download, Search, X, FileText, CheckSquare, Square, File, Calendar } from 'lucide-react'
+import { Trash2, Download, Search, X, FileText, CheckSquare, Square, File, Calendar } from 'lucide-react'
 import ConfirmModal from '@/components/ConfirmModal'
-import DuplicatesModal from '@/components/DuplicatesModal'
 import DatePicker from '@/components/DatePicker'
+import MonthPicker from '@/components/MonthPicker'
 
 const CATEGORY_COLORS = {
   // PJ — cada categoria com cor bem distinta
@@ -56,7 +56,6 @@ export default function FaturaDetalhesPage() {
 
   // Modals
   const [deleteModal, setDeleteModal] = useState({ open: false, transacao: null, multiple: false })
-  const [duplicatesModal, setDuplicatesModal] = useState({ open: false, duplicatas: [] })
   const [loadingAction, setLoadingAction] = useState(false)
 
   useEffect(() => {
@@ -157,40 +156,6 @@ export default function FaturaDetalhesPage() {
     }
   }
 
-  const handleCheckDuplicates = async () => {
-    setLoadingAction(true)
-    try {
-      const res = await fetch(`/api/transacoes?fatura_id=${params.id}&duplicates=true`, { method: 'DELETE' })
-      const result = await res.json()
-      if (result.error) throw new Error(result.error)
-      if (result.duplicadas && result.duplicadas.length > 0) {
-        setDuplicatesModal({ open: true, duplicatas: result.duplicadas })
-      } else {
-        alert('Nenhuma transação duplicada encontrada.')
-      }
-    } catch (err) {
-      alert('Erro ao verificar duplicadas: ' + err.message)
-    } finally {
-      setLoadingAction(false)
-    }
-  }
-
-  const handleDeleteDuplicates = async (ids) => {
-    if (ids.length === 0) return
-    setLoadingAction(true)
-    try {
-      const res = await fetch(`/api/transacoes?ids=${ids.join(',')}`, { method: 'DELETE' })
-      const result = await res.json()
-      if (result.error) throw new Error(result.error)
-      setTransacoes(prev => prev.filter(t => !ids.includes(t.id)))
-      setDuplicatesModal({ open: false, duplicatas: [] })
-    } catch (err) {
-      alert('Erro ao remover duplicadas: ' + err.message)
-    } finally {
-      setLoadingAction(false)
-    }
-  }
-
   const handleUpdateCategoria = async (transacaoId, novaCategoria) => {
     try {
       const res = await fetch('/api/transacoes', {
@@ -219,10 +184,6 @@ export default function FaturaDetalhesPage() {
     } catch (err) {
       alert('Erro ao atualizar tipo: ' + err.message)
     }
-  }
-
-  const handleExportCSV = () => {
-    window.open(`/api/transacoes/export?fatura_id=${params.id}`, '_blank')
   }
 
   const handleUpdateData = async (campo, valor) => {
@@ -336,26 +297,23 @@ export default function FaturaDetalhesPage() {
               Visualizar
             </button>
           )}
-          <button
-            onClick={handleCheckDuplicates}
-            disabled={loadingAction}
-            className="px-3 py-2 text-neutral-600 bg-white border border-neutral-200 rounded-lg hover:bg-neutral-50 text-sm flex items-center gap-2 disabled:opacity-50"
-          >
-            <Copy size={16} />
-            Verificar duplicadas
-          </button>
-          <button
-            onClick={handleExportCSV}
-            className="px-3 py-2 text-neutral-600 bg-white border border-neutral-200 rounded-lg hover:bg-neutral-50 text-sm flex items-center gap-2"
-          >
-            <Download size={16} />
-            Exportar CSV
-          </button>
         </div>
       </div>
 
       {/* Datas da fatura */}
       <div className="bg-white rounded-lg border border-neutral-200 p-4 flex flex-wrap gap-6 items-center">
+        <div className="flex items-center gap-2">
+          <Calendar size={14} strokeWidth={1.5} className="text-neutral-400" />
+          <span className="text-[12px] text-neutral-400 uppercase tracking-wider font-medium">Mês Ref.</span>
+          <MonthPicker
+            value={fatura.mes_referencia ? fatura.mes_referencia.substring(0, 7) : null}
+            onChange={(val) => handleUpdateData('mes_referencia', val ? val + '-01' : null)}
+            placeholder="Definir mês"
+            label={null}
+            inline
+          />
+        </div>
+        <div className="w-px h-5 bg-neutral-200 hidden sm:block" />
         <div className="flex items-center gap-2">
           <Calendar size={14} strokeWidth={1.5} className="text-neutral-400" />
           <span className="text-[12px] text-neutral-400 uppercase tracking-wider font-medium">Fechamento</span>
@@ -510,14 +468,6 @@ export default function FaturaDetalhesPage() {
         loading={loadingAction}
       />
 
-      {/* Duplicates Modal */}
-      <DuplicatesModal
-        isOpen={duplicatesModal.open}
-        onClose={() => setDuplicatesModal({ open: false, duplicatas: [] })}
-        duplicatas={duplicatesModal.duplicatas}
-        onConfirm={handleDeleteDuplicates}
-        loading={loadingAction}
-      />
     </div>
   )
 }

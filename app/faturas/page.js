@@ -5,6 +5,7 @@ import Link from 'next/link'
 import { Trash2, CheckSquare, Square, FileText } from 'lucide-react'
 import ConfirmModal from '@/components/ConfirmModal'
 import DatePicker from '@/components/DatePicker'
+import MonthPicker from '@/components/MonthPicker'
 
 export default function FaturasPage() {
   const [faturas, setFaturas] = useState([])
@@ -13,11 +14,15 @@ export default function FaturasPage() {
   const [selectedIds, setSelectedIds] = useState(new Set())
   const [deleteModal, setDeleteModal] = useState({ open: false, fatura: null, multiple: false })
   const [loadingAction, setLoadingAction] = useState(false)
+  const [mesFiltro, setMesFiltro] = useState(null)
 
   useEffect(() => {
     const carregarFaturas = async () => {
+      setLoading(true)
       try {
-        const response = await fetch('/api/faturas?limit=50')
+        let url = '/api/faturas?limit=50'
+        if (mesFiltro) url += `&mes_referencia=${mesFiltro}`
+        const response = await fetch(url)
         const result = await response.json()
         if (result.error) throw new Error(result.error)
         setFaturas(result.faturas || [])
@@ -28,7 +33,7 @@ export default function FaturasPage() {
       }
     }
     carregarFaturas()
-  }, [])
+  }, [mesFiltro])
 
   const atualizarStatus = async (id, novoStatus) => {
     try {
@@ -43,6 +48,21 @@ export default function FaturasPage() {
       setFaturas(prev => prev.map(f => f.id === id ? { ...f, status: novoStatus } : f))
     } catch (err) {
       alert('Erro ao atualizar: ' + err.message)
+    }
+  }
+
+  const atualizarMes = async (id, valor) => {
+    try {
+      const response = await fetch('/api/faturas', {
+        method: 'PATCH',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ id, mes_referencia: valor ? valor + '-01' : null })
+      })
+      const result = await response.json()
+      if (result.error) throw new Error(result.error)
+      setFaturas(prev => prev.map(f => f.id === id ? { ...f, mes_referencia: valor ? valor + '-01' : null } : f))
+    } catch (err) {
+      alert('Erro ao atualizar mês: ' + err.message)
     }
   }
 
@@ -144,7 +164,13 @@ export default function FaturasPage() {
           <h1 className="text-page-title text-neutral-900">Faturas</h1>
           <p className="text-body text-neutral-500">{faturas.length} faturas cadastradas</p>
         </div>
-        <div className="flex gap-2">
+        <div className="flex items-center gap-2">
+          <MonthPicker
+            onChange={(val) => setMesFiltro(val || null)}
+            placeholder="Todos os meses"
+            allowClear={true}
+            label={null}
+          />
           {selectedIds.size > 0 && (
             <button
               onClick={handleDeleteMultiple}
@@ -220,8 +246,14 @@ export default function FaturasPage() {
                       {f.cartoes?.nome || 'N/A'}
                       <span className="text-[11px] text-neutral-400 ml-1">({f.cartoes?.tipo})</span>
                     </td>
-                    <td className="py-2 px-3 text-[13px] text-neutral-500">
-                      {new Date(f.mes_referencia).toLocaleDateString('pt-BR', { month: 'short', year: 'numeric' })}
+                    <td className="py-2 px-3">
+                      <MonthPicker
+                        value={f.mes_referencia ? f.mes_referencia.substring(0, 7) : null}
+                        onChange={(val) => atualizarMes(f.id, val)}
+                        placeholder="-"
+                        label={null}
+                        inline
+                      />
                     </td>
                     <td className="py-2 px-3">
                       <DatePicker

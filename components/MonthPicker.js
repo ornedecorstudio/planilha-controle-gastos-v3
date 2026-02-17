@@ -15,7 +15,7 @@ const MESES_ABREV = [
   'Set', 'Out', 'Nov', 'Dez'
 ]
 
-export default function MonthPicker({ value, onChange, label = 'Mês de referência', required = false, placeholder, allowClear }) {
+export default function MonthPicker({ value, onChange, label = 'Mês de referência', required = false, placeholder, allowClear, inline = false }) {
   const [isOpen, setIsOpen] = useState(false)
 
   const [selectedYear, selectedMonth] = value
@@ -39,33 +39,43 @@ export default function MonthPicker({ value, onChange, label = 'Mês de referên
 
   return (
     <div className="relative">
-      {label && (
+      {!inline && label && (
         <label className="block text-label font-medium mb-1.5 text-neutral-500">
           {label} {required && <span className="text-red-500">*</span>}
         </label>
       )}
 
-      <button
-        type="button"
-        onClick={() => setIsOpen(!isOpen)}
-        className={`
-          w-full p-2.5 border rounded-lg text-left flex items-center justify-between
-          transition-colors bg-white text-[13px]
-          ${isOpen ? 'border-neutral-400 ring-2 ring-neutral-200' : 'border-neutral-200'}
-          ${!value ? 'text-neutral-400' : 'text-neutral-900'}
-          hover:border-neutral-300
-        `}
-      >
-        <span>{displayValue}</span>
-        <svg
-          className={`w-4 h-4 text-neutral-400 transition-transform ${isOpen ? 'rotate-180' : ''}`}
-          fill="none"
-          viewBox="0 0 24 24"
-          stroke="currentColor"
+      {inline ? (
+        <button
+          type="button"
+          onClick={() => setIsOpen(!isOpen)}
+          className="text-[13px] text-neutral-500 hover:text-neutral-900 hover:bg-neutral-100 px-1.5 py-0.5 rounded cursor-pointer transition-colors whitespace-nowrap"
         >
-          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 9l-7 7-7-7" />
-        </svg>
-      </button>
+          {displayValue}
+        </button>
+      ) : (
+        <button
+          type="button"
+          onClick={() => setIsOpen(!isOpen)}
+          className={`
+            w-full p-2.5 border rounded-lg text-left flex items-center justify-between
+            transition-colors bg-white text-[13px]
+            ${isOpen ? 'border-neutral-400 ring-2 ring-neutral-200' : 'border-neutral-200'}
+            ${!value ? 'text-neutral-400' : 'text-neutral-900'}
+            hover:border-neutral-300
+          `}
+        >
+          <span>{displayValue}</span>
+          <svg
+            className={`w-4 h-4 text-neutral-400 transition-transform ${isOpen ? 'rotate-180' : ''}`}
+            fill="none"
+            viewBox="0 0 24 24"
+            stroke="currentColor"
+          >
+            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 9l-7 7-7-7" />
+          </svg>
+        </button>
+      )}
 
       {isOpen && (
         <>
@@ -74,7 +84,7 @@ export default function MonthPicker({ value, onChange, label = 'Mês de referên
             onClick={() => setIsOpen(false)}
           />
 
-          <div className="absolute top-full left-0 right-0 mt-1 bg-white border border-neutral-200 rounded-lg shadow-card z-20 p-3">
+          <div className={`absolute top-full left-0 mt-1 bg-white border border-neutral-200 rounded-lg shadow-card z-20 p-3 ${inline ? 'w-[240px]' : 'right-0'}`}>
             <div className="flex items-center justify-between mb-3">
               <button
                 type="button"
@@ -149,6 +159,15 @@ export default function MonthPicker({ value, onChange, label = 'Mês de referên
               >
                 Mês anterior
               </button>
+              {allowClear && (
+                <button
+                  type="button"
+                  onClick={() => { onChange(null); setIsOpen(false) }}
+                  className="flex-1 py-1.5 text-[12px] text-neutral-500 hover:bg-neutral-100 rounded-md transition-colors"
+                >
+                  Limpar
+                </button>
+              )}
             </div>
           </div>
         </>

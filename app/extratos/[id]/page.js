@@ -3,7 +3,7 @@
 import { useState, useEffect } from 'react'
 import { useParams, useRouter } from 'next/navigation'
 import Link from 'next/link'
-import { Trash2, Download, Search, X, FileText, CheckSquare, Square, ArrowLeft, TrendingUp, TrendingDown } from 'lucide-react'
+import { Trash2, Search, X, FileText, CheckSquare, Square, ArrowLeft, TrendingUp, TrendingDown } from 'lucide-react'
 import ConfirmModal from '@/components/ConfirmModal'
 
 const CATEGORY_COLORS = {
@@ -156,10 +156,6 @@ export default function ExtratoDetalhesPage() {
     }
   }
 
-  const handleExportCSV = () => {
-    window.open(`/api/movimentacoes/export?extrato_id=${params.id}`, '_blank')
-  }
-
   if (loading) {
     return (
       <div className="flex items-center justify-center h-64">
@@ -213,13 +209,6 @@ export default function ExtratoDetalhesPage() {
               Baixar arquivo
             </a>
           )}
-          <button
-            onClick={handleExportCSV}
-            className="px-4 py-2 bg-emerald-500 text-white rounded-lg hover:bg-emerald-600 font-medium flex items-center gap-2"
-          >
-            <Download size={18} />
-            Exportar CSV
-          </button>
           {selectedIds.size > 0 && (
             <button
               onClick={handleDeleteMultiple}

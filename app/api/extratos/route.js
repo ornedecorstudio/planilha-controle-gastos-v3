@@ -58,6 +58,7 @@ export async function GET(request) {
 
     const banco = searchParams.get('banco')
     const ano = searchParams.get('ano')
+    const mes_referencia = searchParams.get('mes_referencia') // YYYY-MM
     const limit = parseInt(searchParams.get('limit')) || 50
 
     let query = supabase
@@ -70,7 +71,11 @@ export async function GET(request) {
       query = query.eq('banco', banco)
     }
 
-    if (ano) {
+    if (mes_referencia) {
+      query = query
+        .gte('mes_referencia', `${mes_referencia}-01`)
+        .lte('mes_referencia', `${mes_referencia}-31`)
+    } else if (ano) {
       query = query
         .gte('mes_referencia', `${ano}-01-01`)
         .lte('mes_referencia', `${ano}-12-31`)
