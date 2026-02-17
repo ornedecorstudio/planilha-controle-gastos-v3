@@ -411,6 +411,7 @@ export default function ExtratosPage() {
             </div>
             <div className="flex items-center gap-2">
               <MonthPicker
+                value={mesFiltro}
                 onChange={(val) => setMesFiltro(val || null)}
                 placeholder="Todos os meses"
                 allowClear={true}

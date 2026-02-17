@@ -72,9 +72,11 @@ export async function GET(request) {
     }
 
     if (mes_referencia) {
+      const [y, m] = mes_referencia.split('-').map(Number)
+      const lastDay = new Date(y, m, 0).getDate()
       query = query
         .gte('mes_referencia', `${mes_referencia}-01`)
-        .lte('mes_referencia', `${mes_referencia}-31`)
+        .lte('mes_referencia', `${mes_referencia}-${String(lastDay).padStart(2, '0')}`)
     } else if (ano) {
       query = query
         .gte('mes_referencia', `${ano}-01-01`)

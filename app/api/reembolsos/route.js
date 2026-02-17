@@ -42,9 +42,11 @@ export async function GET(request) {
 
     // Filtrar por mês
     if (mes) {
+      const [y, m] = mes.split('-').map(Number)
+      const lastDay = new Date(y, m, 0).getDate()
       faturaQuery = faturaQuery
         .gte('mes_referencia', `${mes}-01`)
-        .lte('mes_referencia', `${mes}-31`)
+        .lte('mes_referencia', `${mes}-${String(lastDay).padStart(2, '0')}`)
     }
 
     const { data: faturas, error: faturaError } = await faturaQuery

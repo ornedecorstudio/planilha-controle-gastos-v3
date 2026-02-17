@@ -1,7 +1,7 @@
 'use client'
 
-import { useState } from 'react'
-import { ChevronLeft, ChevronRight } from 'lucide-react'
+import { useState, useRef, useEffect } from 'react'
+import { ChevronLeft, ChevronRight, Calendar } from 'lucide-react'
 
 const MESES = [
   'Janeiro', 'Fevereiro', 'Março', 'Abril',
@@ -17,12 +17,42 @@ const MESES_ABREV = [
 
 export default function MonthPicker({ value, onChange, label = 'Mês de referência', required = false, placeholder, allowClear, inline = false }) {
   const [isOpen, setIsOpen] = useState(false)
+  const containerRef = useRef(null)
+  const popoverRef = useRef(null)
 
   const [selectedYear, selectedMonth] = value
     ? value.split('-').map(Number)
-    : [new Date().getFullYear(), new Date().getMonth() + 1]
+    : [null, null]
 
   const [viewYear, setViewYear] = useState(selectedYear || new Date().getFullYear())
+
+  // Sync viewYear when value changes
+  useEffect(() => {
+    if (value) {
+      const [y] = value.split('-').map(Number)
+      setViewYear(y)
+    }
+  }, [value])
+
+  // Adjust popover position to stay within viewport
+  useEffect(() => {
+    if (isOpen && popoverRef.current && containerRef.current) {
+      const popover = popoverRef.current
+      const rect = popover.getBoundingClientRect()
+      const viewportWidth = window.innerWidth
+
+      // Reset any previous positioning
+      popover.style.left = '0'
+      popover.style.right = 'auto'
+
+      // Check if popover overflows right side
+      const newRect = popover.getBoundingClientRect()
+      if (newRect.right > viewportWidth - 8) {
+        popover.style.left = 'auto'
+        popover.style.right = '0'
+      }
+    }
+  }, [isOpen])
 
   const handleMonthSelect = (month) => {
     const mesStr = String(month).padStart(2, '0')
@@ -33,12 +63,17 @@ export default function MonthPicker({ value, onChange, label = 'Mês de referên
   const prevYear = () => setViewYear(v => v - 1)
   const nextYear = () => setViewYear(v => v + 1)
 
-  const displayValue = value
+  const hasValue = selectedYear !== null && selectedMonth !== null
+  const displayValue = hasValue
+    ? `${MESES_ABREV[selectedMonth - 1]}/${selectedYear}`
+    : (placeholder || 'Selecione o mês...')
+
+  const displayValueFull = hasValue
     ? `${MESES[selectedMonth - 1]} ${selectedYear}`
     : (placeholder || 'Selecione o mês...')
 
   return (
-    <div className="relative">
+    <div className="relative" ref={containerRef}>
       {!inline && label && (
         <label className="block text-label font-medium mb-1.5 text-neutral-500">
           {label} {required && <span className="text-red-500">*</span>}
@@ -49,7 +84,11 @@ export default function MonthPicker({ value, onChange, label = 'Mês de referên
         <button
           type="button"
           onClick={() => setIsOpen(!isOpen)}
-          className="text-[13px] text-neutral-500 hover:text-neutral-900 hover:bg-neutral-100 px-1.5 py-0.5 rounded cursor-pointer transition-colors whitespace-nowrap"
+          className={`text-[13px] px-1.5 py-0.5 rounded cursor-pointer transition-colors whitespace-nowrap
+            ${hasValue
+              ? 'text-neutral-700 hover:text-neutral-900 hover:bg-neutral-100'
+              : 'text-neutral-400 hover:text-neutral-600 hover:bg-neutral-100'
+            }`}
         >
           {displayValue}
         </button>
@@ -58,16 +97,19 @@ export default function MonthPicker({ value, onChange, label = 'Mês de referên
           type="button"
           onClick={() => setIsOpen(!isOpen)}
           className={`
-            w-full p-2.5 border rounded-lg text-left flex items-center justify-between
+            w-full p-2.5 border rounded-lg text-left flex items-center justify-between gap-2
             transition-colors bg-white text-[13px]
             ${isOpen ? 'border-neutral-400 ring-2 ring-neutral-200' : 'border-neutral-200'}
-            ${!value ? 'text-neutral-400' : 'text-neutral-900'}
+            ${!hasValue ? 'text-neutral-400' : 'text-neutral-900'}
             hover:border-neutral-300
           `}
         >
-          <span>{displayValue}</span>
+          <div className="flex items-center gap-2 min-w-0">
+            <Calendar size={14} strokeWidth={1.5} className="text-neutral-400 shrink-0" />
+            <span className="truncate">{displayValueFull}</span>
+          </div>
           <svg
-            className={`w-4 h-4 text-neutral-400 transition-transform ${isOpen ? 'rotate-180' : ''}`}
+            className={`w-4 h-4 text-neutral-400 transition-transform shrink-0 ${isOpen ? 'rotate-180' : ''}`}
             fill="none"
             viewBox="0 0 24 24"
             stroke="currentColor"
@@ -84,7 +126,11 @@ export default function MonthPicker({ value, onChange, label = 'Mês de referên
             onClick={() => setIsOpen(false)}
           />
 
-          <div className={`absolute top-full left-0 mt-1 bg-white border border-neutral-200 rounded-lg shadow-card z-20 p-3 ${inline ? 'w-[240px]' : 'right-0'}`}>
+          <div
+            ref={popoverRef}
+            className="absolute top-full mt-1 bg-white border border-neutral-200 rounded-lg shadow-lg z-20 p-3 w-[280px]"
+          >
+            {/* Year navigation */}
             <div className="flex items-center justify-between mb-3">
               <button
                 type="button"
@@ -107,6 +153,7 @@ export default function MonthPicker({ value, onChange, label = 'Mês de referên
               </button>
             </div>
 
+            {/* Month grid */}
             <div className="grid grid-cols-4 gap-1.5">
               {MESES_ABREV.map((mes, index) => {
                 const mesNum = index + 1
@@ -119,7 +166,7 @@ export default function MonthPicker({ value, onChange, label = 'Mês de referên
                     type="button"
                     onClick={() => handleMonthSelect(mesNum)}
                     className={`
-                      py-1.5 px-2 rounded-md text-[13px] font-medium transition-all
+                      py-2 px-2 rounded-md text-[13px] font-medium transition-all
                       ${isSelected
                         ? 'bg-neutral-900 text-white'
                         : isCurrentMonth
@@ -134,7 +181,8 @@ export default function MonthPicker({ value, onChange, label = 'Mês de referên
               })}
             </div>
 
-            <div className="mt-3 pt-2 border-t border-neutral-200 flex gap-2">
+            {/* Quick actions */}
+            <div className="mt-3 pt-2 border-t border-neutral-200 flex gap-1.5">
               <button
                 type="button"
                 onClick={() => {
@@ -163,7 +211,7 @@ export default function MonthPicker({ value, onChange, label = 'Mês de referên
                 <button
                   type="button"
                   onClick={() => { onChange(null); setIsOpen(false) }}
-                  className="flex-1 py-1.5 text-[12px] text-neutral-500 hover:bg-neutral-100 rounded-md transition-colors"
+                  className="flex-1 py-1.5 text-[12px] text-red-400 hover:bg-red-50 hover:text-red-600 rounded-md transition-colors"
                 >
                   Limpar
                 </button>
