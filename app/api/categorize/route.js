@@ -86,10 +86,11 @@ function categorizarDeterministico(descricao) {
 
   // ===== DESIGN/FERRAMENTAS (PJ) =====
   const designTermos = [
-    'CANVA', 'ADOBE', 'FIGMA', 'SKETCH', 'FREEPIK', 'MAGNIFIC',
+    'CANVA', 'ADOBE', 'FIGMA', 'SKETCH',
     'ENVATO', 'SHUTTERSTOCK', 'ISTOCK', 'UNSPLASH',
     'VERCEL', 'NETLIFY', 'HEROKU', 'DIGITAL OCEAN', 'HOSTINGER',
-    'GITHUB', 'GITLAB', 'BITBUCKET', 'JETBRAINS'
+    'GITHUB', 'GITLAB', 'BITBUCKET', 'JETBRAINS',
+    'REGISTRO.BR', 'NAMECHEAP', 'CLOUDFLARE', 'GODADDY'
   ];
   for (const termo of designTermos) {
     if (desc.includes(termo)) return { categoria: 'Design/Ferramentas', incluir: true, confianca: 'alta' };
@@ -99,7 +100,8 @@ function categorizarDeterministico(descricao) {
   const iaTermos = [
     'OPENAI', 'CHATGPT', 'CLAUDE', 'ANTHROPIC',
     'AWS', 'AMAZON WEB', 'GOOGLE CLOUD', 'GCP', 'AZURE',
-    'MAKE.COM', 'ZAPIER', 'N8N', 'INTEGROMAT'
+    'MAKE.COM', 'ZAPIER', 'N8N', 'INTEGROMAT',
+    'FREEPIK', 'MAGNIFIC'
   ];
   for (const termo of iaTermos) {
     if (desc.includes(termo)) return { categoria: 'IA e Automacao', incluir: true, confianca: 'alta' };
@@ -114,7 +116,8 @@ function categorizarDeterministico(descricao) {
   // ===== GESTAO (PJ) =====
   const gestaoTermos = [
     'TRELLO', 'ATLASSIAN', 'NOTION', 'ASANA', 'MONDAY',
-    'ZOOM', 'SLACK', 'CLICKUP', 'BASECAMP', 'JIRA'
+    'ZOOM', 'SLACK', 'CLICKUP', 'BASECAMP', 'JIRA',
+    'GOOGLE WORKSPACE', 'GSUITE'
   ];
   for (const termo of gestaoTermos) {
     if (desc.includes(termo)) return { categoria: 'Gestao', incluir: true, confianca: 'alta' };
@@ -124,7 +127,8 @@ function categorizarDeterministico(descricao) {
   // Transportadoras e serviços de envio/logística
   const fretesTermos = [
     'LOGGI', 'CORREIOS', 'JADLOG', 'SEQUOIA', 'TOTAL EXPRESS',
-    'MELHOR ENVIO', 'KANGU', 'MANDAE', 'AZUL CARGO'
+    'MELHOR ENVIO', 'KANGU', 'MANDAE', 'AZUL CARGO',
+    'CAINIAO', 'YANWEN', '4PX'
   ];
   for (const termo of fretesTermos) {
     if (desc.includes(termo)) return { categoria: 'Fretes', incluir: true, confianca: 'alta' };

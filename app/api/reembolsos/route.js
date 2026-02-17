@@ -179,12 +179,12 @@ export async function PATCH(request) {
         .eq('categoria', 'Reembolso Sócio')
         .is('fatura_vinculada_id', null)
 
-      // Algoritmo de sugestão: match por valor aproximado
+      // Algoritmo de sugestão: match por valor exato (conforme contrato)
       const sugestoes = []
 
       for (const fatura of faturasPendentes || []) {
         const valorPJ = parseFloat(fatura.valor_pj)
-        const tolerancia = 0.50 // R$ 0,50 de tolerância
+        const tolerancia = 0.01 // Match quase exato (centavos)
 
         const matchesExatos = (movimentacoes || []).filter(m => {
           const valorMov = parseFloat(m.valor)
@@ -199,11 +199,19 @@ export async function PATCH(request) {
             motivo: 'Valor exato encontrado'
           })
         } else if (matchesExatos.length > 1) {
+          // Ordenar por proximidade de data à fatura (mais próximo primeiro)
+          const faturaDate = new Date(fatura.mes_referencia)
+          matchesExatos.sort((a, b) => {
+            const diffA = Math.abs(new Date(a.data) - faturaDate)
+            const diffB = Math.abs(new Date(b.data) - faturaDate)
+            return diffA - diffB
+          })
           sugestoes.push({
             fatura,
+            movimentacao: matchesExatos[0],
             movimentacoes_possiveis: matchesExatos,
             confianca: 'media',
-            motivo: 'Múltiplos valores compatíveis'
+            motivo: 'Múltiplos valores compatíveis — sugerido o mais próximo por data'
           })
         }
       }

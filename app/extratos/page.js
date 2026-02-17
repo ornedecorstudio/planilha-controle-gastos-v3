@@ -10,8 +10,9 @@ import DropZone from '@/components/DropZone'
 import UploadButton from '@/components/UploadButton'
 
 const CATEGORIA_EXTRATO_COLORS = {
-  'Reembolso Sócio': 'bg-blue-100 text-blue-800',
+  'Reembolso Sócio': 'bg-amber-100 text-amber-800',
   'Aporte Sócio': 'bg-emerald-100 text-emerald-800',
+  'Pró-labore': 'bg-pink-100 text-pink-800',
   'Fretes': 'bg-blue-100 text-blue-800',
   'Impostos': 'bg-red-100 text-red-800',
   'Contabilidade': 'bg-purple-100 text-purple-800',
@@ -28,6 +29,7 @@ const CATEGORIA_EXTRATO_COLORS = {
 const CATEGORIAS_EXTRATO = [
   'Reembolso Sócio',
   'Aporte Sócio',
+  'Pró-labore',
   'Fretes',
   'Impostos',
   'Contabilidade',
