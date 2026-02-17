@@ -3,9 +3,10 @@
 import { useState, useEffect } from 'react'
 import { useParams, useRouter } from 'next/navigation'
 import Link from 'next/link'
-import { Trash2, Copy, Download, Search, X, FileText, CheckSquare, Square, File } from 'lucide-react'
+import { Trash2, Copy, Download, Search, X, FileText, CheckSquare, Square, File, Calendar } from 'lucide-react'
 import ConfirmModal from '@/components/ConfirmModal'
 import DuplicatesModal from '@/components/DuplicatesModal'
+import DatePicker from '@/components/DatePicker'
 
 const CATEGORY_COLORS = {
   // PJ — cada categoria com cor bem distinta
@@ -224,6 +225,21 @@ export default function FaturaDetalhesPage() {
     window.open(`/api/transacoes/export?fatura_id=${params.id}`, '_blank')
   }
 
+  const handleUpdateData = async (campo, valor) => {
+    try {
+      const res = await fetch('/api/faturas', {
+        method: 'PATCH',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ id: params.id, [campo]: valor })
+      })
+      const result = await res.json()
+      if (result.error) throw new Error(result.error)
+      setFatura(prev => ({ ...prev, [campo]: valor }))
+    } catch (err) {
+      alert('Erro ao atualizar data: ' + err.message)
+    }
+  }
+
   const handleDownloadArquivo = () => {
     if (fatura?.pdf_url) {
       // Cria um link temporário para download
@@ -335,6 +351,31 @@ export default function FaturaDetalhesPage() {
             <Download size={16} />
             Exportar CSV
           </button>
+        </div>
+      </div>
+
+      {/* Datas da fatura */}
+      <div className="bg-white rounded-lg border border-neutral-200 p-4 flex flex-wrap gap-6 items-center">
+        <div className="flex items-center gap-2">
+          <Calendar size={14} strokeWidth={1.5} className="text-neutral-400" />
+          <span className="text-[12px] text-neutral-400 uppercase tracking-wider font-medium">Fechamento</span>
+          <DatePicker
+            value={fatura.data_fechamento || null}
+            onChange={(val) => handleUpdateData('data_fechamento', val)}
+            placeholder="Definir data"
+            inline
+          />
+        </div>
+        <div className="w-px h-5 bg-neutral-200 hidden sm:block" />
+        <div className="flex items-center gap-2">
+          <Calendar size={14} strokeWidth={1.5} className="text-neutral-400" />
+          <span className="text-[12px] text-neutral-400 uppercase tracking-wider font-medium">Vencimento</span>
+          <DatePicker
+            value={fatura.data_vencimento || null}
+            onChange={(val) => handleUpdateData('data_vencimento', val)}
+            placeholder="Definir data"
+            inline
+          />
         </div>
       </div>
 

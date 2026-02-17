@@ -4,6 +4,7 @@ import { useState, useEffect } from 'react'
 import Link from 'next/link'
 import { Trash2, CheckSquare, Square, FileText } from 'lucide-react'
 import ConfirmModal from '@/components/ConfirmModal'
+import DatePicker from '@/components/DatePicker'
 
 export default function FaturasPage() {
   const [faturas, setFaturas] = useState([])
@@ -42,6 +43,21 @@ export default function FaturasPage() {
       setFaturas(prev => prev.map(f => f.id === id ? { ...f, status: novoStatus } : f))
     } catch (err) {
       alert('Erro ao atualizar: ' + err.message)
+    }
+  }
+
+  const atualizarData = async (id, campo, valor) => {
+    try {
+      const response = await fetch('/api/faturas', {
+        method: 'PATCH',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ id, [campo]: valor })
+      })
+      const result = await response.json()
+      if (result.error) throw new Error(result.error)
+      setFaturas(prev => prev.map(f => f.id === id ? { ...f, [campo]: valor } : f))
+    } catch (err) {
+      alert('Erro ao atualizar data: ' + err.message)
     }
   }
 
@@ -183,6 +199,7 @@ export default function FaturasPage() {
                   </th>
                   <th className="py-2 px-3 text-left text-[11px] uppercase tracking-wider font-medium text-neutral-400">Cartão</th>
                   <th className="py-2 px-3 text-left text-[11px] uppercase tracking-wider font-medium text-neutral-400">Mês</th>
+                  <th className="py-2 px-3 text-left text-[11px] uppercase tracking-wider font-medium text-neutral-400">Fechamento</th>
                   <th className="py-2 px-3 text-left text-[11px] uppercase tracking-wider font-medium text-neutral-400">Vencimento</th>
                   <th className="py-2 px-3 text-right text-[11px] uppercase tracking-wider font-medium text-neutral-400">Total</th>
                   <th className="py-2 px-3 text-right text-[11px] uppercase tracking-wider font-medium text-neutral-400">PJ</th>
@@ -206,8 +223,21 @@ export default function FaturasPage() {
                     <td className="py-2 px-3 text-[13px] text-neutral-500">
                       {new Date(f.mes_referencia).toLocaleDateString('pt-BR', { month: 'short', year: 'numeric' })}
                     </td>
-                    <td className="py-2 px-3 text-[13px] text-neutral-500">
-                      {f.data_vencimento ? new Date(f.data_vencimento).toLocaleDateString('pt-BR') : '-'}
+                    <td className="py-2 px-3">
+                      <DatePicker
+                        value={f.data_fechamento || null}
+                        onChange={(val) => atualizarData(f.id, 'data_fechamento', val)}
+                        placeholder="-"
+                        inline
+                      />
+                    </td>
+                    <td className="py-2 px-3">
+                      <DatePicker
+                        value={f.data_vencimento || null}
+                        onChange={(val) => atualizarData(f.id, 'data_vencimento', val)}
+                        placeholder="-"
+                        inline
+                      />
                     </td>
                     <td className="py-2 px-3 text-right text-[13px] font-mono font-medium text-neutral-900">
                       R$ {parseFloat(f.valor_total || 0).toLocaleString('pt-BR', { minimumFractionDigits: 2 })}

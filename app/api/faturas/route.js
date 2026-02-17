@@ -126,7 +126,7 @@ export async function PATCH(request) {
     const supabase = createServerClient()
     const body = await request.json()
 
-    const { id, status, data_pagamento } = body
+    const { id, status, data_pagamento, data_vencimento, data_fechamento } = body
 
     if (!id) {
       return NextResponse.json({ error: 'ID da fatura e obrigatorio' }, { status: 400 })
@@ -135,6 +135,8 @@ export async function PATCH(request) {
     const updateData = {}
     if (status) updateData.status = status
     if (data_pagamento) updateData.data_pagamento = data_pagamento
+    if (data_vencimento !== undefined) updateData.data_vencimento = data_vencimento || null
+    if (data_fechamento !== undefined) updateData.data_fechamento = data_fechamento || null
 
     const { data, error } = await supabase
       .from('faturas')
