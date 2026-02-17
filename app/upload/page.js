@@ -53,6 +53,8 @@ export default function UploadPage() {
   const [metodoProcessamento, setMetodoProcessamento] = useState('')
   const [auditoria, setAuditoria] = useState(null)
   const [manualReview, setManualReview] = useState(false)
+  const [senhaPdf, setSenhaPdf] = useState('')
+  const [pedindoSenha, setPedindoSenha] = useState(false)
 
   useEffect(() => {
     const carregarDados = async () => {
@@ -99,9 +101,13 @@ export default function UploadPage() {
       setPdfFile(file)
       const ext = file.name.split('.').pop()?.toLowerCase()
       setTipoArquivo(ext)
+      setPedindoSenha(false)
+      setSenhaPdf('')
     } else {
       setPdfFile(null)
       setTipoArquivo('')
+      setPedindoSenha(false)
+      setSenhaPdf('')
     }
   }
 
@@ -154,6 +160,9 @@ export default function UploadPage() {
         formData.append('pdf', pdfFile)
         formData.append('cartao_nome', getCartaoNome())
         formData.append('tipo_cartao', getCartaoTipo())
+        if (senhaPdf) {
+          formData.append('senha_pdf', senhaPdf)
+        }
 
         const pdfResponse = await fetch('/api/parse-pdf', {
           method: 'POST',
@@ -167,6 +176,14 @@ export default function UploadPage() {
             throw new Error('O processamento excedeu o tempo limite. Tente novamente.')
           }
           const errorData = await pdfResponse.json().catch(() => ({}))
+          if (errorData.code === 'PASSWORD_REQUIRED') {
+            setPedindoSenha(true)
+            setError(errorData.wrongPassword
+              ? 'Senha incorreta. Tente novamente.'
+              : 'Este PDF é protegido por senha. Informe a senha abaixo.')
+            setLoading(false)
+            return
+          }
           throw new Error(errorData.error || `Erro do servidor (${pdfResponse.status})`)
         }
 
@@ -451,6 +468,26 @@ export default function UploadPage() {
               { ext: '.PDF', label: 'usa IA', color: 'bg-amber-50 text-amber-700' },
             ]}
           />
+
+          {pedindoSenha && (
+            <div className="bg-amber-50 border border-amber-200 rounded-lg p-4">
+              <label className="block text-[13px] font-medium text-amber-800 mb-1.5">
+                Senha do PDF
+              </label>
+              <input
+                type="password"
+                value={senhaPdf}
+                onChange={(e) => setSenhaPdf(e.target.value)}
+                onKeyDown={(e) => { if (e.key === 'Enter' && senhaPdf) handleProcessar() }}
+                placeholder="Digite a senha do PDF"
+                className="w-full p-2.5 border border-neutral-200 rounded-lg text-neutral-900 text-[13px] focus:border-neutral-400 focus:ring-2 focus:ring-neutral-200 focus:outline-none"
+                autoFocus
+              />
+              <p className="text-[11px] text-amber-600 mt-1">
+                A senha geralmente é o CPF ou código numérico fornecido pelo banco.
+              </p>
+            </div>
+          )}
 
           <p className="text-label text-neutral-400 text-center">
             Suporta faturas de Nubank, Itaú, Santander, C6 Bank, Mercado Pago, PicPay, Renner, XP e outros.

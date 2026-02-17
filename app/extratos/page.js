@@ -56,6 +56,8 @@ export default function ExtratosPage() {
   const [loading, setLoading] = useState(false)
   const [saving, setSaving] = useState(false)
   const [error, setError] = useState('')
+  const [senhaPdf, setSenhaPdf] = useState('')
+  const [pedindoSenha, setPedindoSenha] = useState(false)
   const [success, setSuccess] = useState('')
   const [extratosImportados, setExtratosImportados] = useState([])
   const [loadingExtratos, setLoadingExtratos] = useState(true)
@@ -162,10 +164,14 @@ export default function ExtratosPage() {
       setArquivoFile(file)
       const ext = file.name.split('.').pop()?.toLowerCase()
       setTipoArquivo(ext)
+      setPedindoSenha(false)
+      setSenhaPdf('')
     } else {
       setArquivo(null)
       setArquivoFile(null)
       setTipoArquivo('')
+      setPedindoSenha(false)
+      setSenhaPdf('')
     }
   }
 
@@ -180,12 +186,24 @@ export default function ExtratosPage() {
       const formData = new FormData()
       formData.append('file', arquivo)
       formData.append('banco', banco)
+      if (senhaPdf) {
+        formData.append('senha_pdf', senhaPdf)
+      }
 
       const response = await fetch('/api/parse-extrato', {
         method: 'POST',
         body: formData
       })
       const result = await response.json()
+
+      if (result.code === 'PASSWORD_REQUIRED') {
+        setPedindoSenha(true)
+        setError(result.wrongPassword
+          ? 'Senha incorreta. Tente novamente.'
+          : 'Este PDF é protegido por senha. Informe a senha abaixo.')
+        setLoading(false)
+        return
+      }
 
       if (result.error) {
         throw new Error(result.error)
@@ -347,6 +365,26 @@ export default function ExtratosPage() {
               { ext: '.PDF', label: 'usa IA', color: 'bg-neutral-100 text-neutral-600' },
             ]}
           />
+
+          {pedindoSenha && (
+            <div className="bg-amber-50 border border-amber-200 rounded-lg p-4">
+              <label className="block text-[13px] font-medium text-amber-800 mb-1.5">
+                Senha do PDF
+              </label>
+              <input
+                type="password"
+                value={senhaPdf}
+                onChange={(e) => setSenhaPdf(e.target.value)}
+                onKeyDown={(e) => { if (e.key === 'Enter' && senhaPdf) handleProcessar() }}
+                placeholder="Digite a senha do PDF"
+                className="w-full p-2.5 border border-neutral-200 rounded-lg text-neutral-900 text-[13px] focus:border-neutral-400 focus:ring-2 focus:ring-neutral-200 focus:outline-none"
+                autoFocus
+              />
+              <p className="text-[11px] text-amber-600 mt-1">
+                Para extratos C6 Bank, a senha geralmente é o CPF ou código numérico.
+              </p>
+            </div>
+          )}
 
           <div className="flex justify-center">
             <UploadButton

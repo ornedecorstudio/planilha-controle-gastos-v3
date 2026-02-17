@@ -14,6 +14,7 @@ export async function POST(request) {
     const formData = await request.formData();
     const file = formData.get('pdf') || formData.get('file');
     const banco = formData.get('banco') || '';
+    const senhaPdf = formData.get('senha_pdf') || '';
 
     if (!file) {
       return NextResponse.json(
@@ -102,7 +103,10 @@ export async function POST(request) {
 
       try {
         const pdfParse = (await import('pdf-parse')).default;
-        const pdfData = await pdfParse(buffer);
+        const pdfInput = senhaPdf
+          ? { data: new Uint8Array(bytes), password: senhaPdf }
+          : buffer;
+        const pdfData = await pdfParse(pdfInput);
         textoExtraido = pdfData.text || '';
         console.log(`[parse-extrato] Texto extraído: ${textoExtraido.length} caracteres`);
 
@@ -112,6 +116,16 @@ export async function POST(request) {
         }
         console.log(`[parse-extrato] Banco detectado: ${bancoDetectado}`);
       } catch (parseError) {
+        const msg = parseError.message || '';
+        if (msg.includes('password') || msg.includes('Password') ||
+            parseError.code === 1 || parseError.code === 2) {
+          return NextResponse.json({
+            error: 'PDF protegido por senha',
+            code: 'PASSWORD_REQUIRED',
+            needsPassword: true,
+            wrongPassword: !!senhaPdf
+          }, { status: 401 });
+        }
         console.error('[parse-extrato] Erro no pdf-parse:', parseError.message);
         // Continua mesmo sem texto extraído — a IA lê o PDF visualmente
       }
